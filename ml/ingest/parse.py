@@ -18,6 +18,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+import pandera.pandas as pa
 import pandas as pd
 
 from ml.ingest.normalize import competition_to_league, encode_outcome, venue_to_id

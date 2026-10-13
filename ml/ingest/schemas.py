@@ -94,7 +94,7 @@ class BallSchema(pa.DataFrameModel):
     wkts_before: Series[int] = pa.Field(ge=0, le=9)
     legal_balls_before: Series[int] = pa.Field(ge=0)
     target: Series[int] = pa.Field(ge=0, nullable=True)  # None in 1st innings
-    rrr_before: Series[float] = pa.Field(ge=0, nullable=True)
+    rrr_before: Series[float] = pa.Field(nullable=True)  # can be negative when chasing team is ahead
 
     # Label
     outcome_class: Series[str] = pa.Field(isin=OUTCOME_CLASSES)
