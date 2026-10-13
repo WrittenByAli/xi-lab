@@ -1,0 +1,13 @@
+.git
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+node_modules
+frontend/node_modules
+frontend/dist
+data/raw
+data/interim
+models
+*.egg-info
