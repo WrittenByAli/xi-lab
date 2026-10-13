@@ -12,11 +12,23 @@ ODI, and Test cricket.
 
 ## Status
 
-| Phase | Format | Status |
-|-------|--------|--------|
-| 1 | T20I + all T20 leagues, all teams | 🔨 In progress |
-| 2 | ODI | 📋 Planned |
-| 3 | Test | 📋 Planned |
+| Component | Status |
+|-----------|--------|
+| Data pipeline (Cricsheet parse/normalize) | Done |
+| Player coverage (6,303 players, 98.9% T20) | Done |
+| Monthly as-of snapshots (leakage-proof) | Done |
+| Ability model (Empirical Bayes shrinkage) | Done |
+| Ball-outcome model (LightGBM 9-class) | Done |
+| Policy models (batting order + bowling plan) | Done |
+| Monte Carlo simulator (vectorized, CRN) | Done |
+| ILP optimizer + racing search | Done |
+| Backtest evaluator (Brier, log loss, calibration) | Done |
+| FastAPI backend (6 routers, 11 endpoints) | Done |
+| CI/CD (GitHub Actions, Docker) | Done |
+| T20 format | Done |
+| ODI format | Snapshots ready, models pending |
+| Test format | Planned |
+| React frontend | Planned |
 
 ---
 
@@ -72,6 +84,31 @@ MLOPS     MLflow, DVC, Docker Compose, GitHub Actions
   so comparisons are paired and noise is minimal.
 - **Tie sets.** The output is the best XI *and* every XI statistically
   indistinguishable from it — with a core (always selected) and flexible players.
+
+---
+
+## API
+
+Start the server:
+```bash
+uvicorn backend.app.main:app --reload
+```
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Liveness check |
+| `/recommend` | POST | Best XI from squad (ILP + racing search) |
+| `/simulate` | POST | Match simulation with score distributions |
+| `/compare` | POST | Paired delta-WP between two XI variants |
+| `/player/{id}` | GET | Player profile with phase ratings |
+| `/player/search?q=` | GET | Search players by name |
+| `/live` | GET | Prediction log with results |
+| `/results` | GET | Backtest metrics |
+| `/results/ability` | GET | Ability model metrics |
+| `/results/ball` | GET | Ball model metrics |
+| `/results/all` | GET | All evaluation metrics |
+
+Interactive docs at `http://localhost:8000/docs` (Swagger UI).
 
 ---
 
