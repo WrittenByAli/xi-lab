@@ -209,7 +209,9 @@ export default function Results() {
                   <CardTitle>Ability Model</CardTitle>
                   {allMetrics?.ability ? (
                     <div className="mt-3 space-y-2">
-                      {Object.entries(allMetrics.ability).map(([k, v]) => (
+                      {Object.entries(allMetrics.ability)
+                        .filter(([, v]) => typeof v === 'number' || typeof v === 'string')
+                        .map(([k, v]) => (
                         <div key={k} className="flex justify-between items-center py-1 border-b border-surface-border/30 last:border-0">
                           <span className="text-[12px] text-text-tertiary">{k.replace(/_/g, ' ')}</span>
                           <span className="stat text-[12px] text-text-primary">
@@ -234,18 +236,25 @@ export default function Results() {
                   <CardTitle>Ball Outcome Model</CardTitle>
                   {allMetrics?.ball ? (
                     <div className="mt-3 space-y-2">
-                      {['val_log_loss', 'val_accuracy', 'test_log_loss', 'test_accuracy'].map((k) => {
-                        const v = (allMetrics.ball as Record<string, any>)[k]
-                        if (v === undefined) return null
-                        return (
+                      {(() => {
+                        const ball = allMetrics.ball as Record<string, any>
+                        const valMetrics = ball.val ?? {}
+                        const testMetrics = ball.test ?? {}
+                        return [
+                          { k: 'Val log loss', v: valMetrics.log_loss },
+                          { k: 'Val accuracy', v: valMetrics.accuracy },
+                          { k: 'Test log loss', v: testMetrics.log_loss },
+                          { k: 'Test accuracy', v: testMetrics.accuracy },
+                          { k: 'Test samples', v: testMetrics.n_samples },
+                        ].filter(({ v }) => v !== undefined).map(({ k, v }) => (
                           <div key={k} className="flex justify-between items-center py-1 border-b border-surface-border/30 last:border-0">
-                            <span className="text-[12px] text-text-tertiary">{k.replace(/_/g, ' ')}</span>
+                            <span className="text-[12px] text-text-tertiary">{k}</span>
                             <span className="stat text-[12px] text-text-primary">
-                              {typeof v === 'number' ? v.toFixed(4) : String(v)}
+                              {typeof v === 'number' ? (v > 100 ? v.toLocaleString() : v.toFixed(4)) : String(v)}
                             </span>
                           </div>
-                        )
-                      })}
+                        ))
+                      })()}
                     </div>
                   ) : (
                     <p className="text-[12px] text-text-tertiary mt-2">Not available — run training pipeline</p>
@@ -253,6 +262,45 @@ export default function Results() {
                 </Card>
               </motion.div>
             </div>
+
+            {/* Feature importance */}
+            {allMetrics?.ball && (() => {
+              const ball = allMetrics.ball as Record<string, any>
+              const imp = (ball.test ?? ball.val)?.feature_importance_top20 as { feature: string; gain: number }[] | undefined
+              if (!imp || imp.length === 0) return null
+              const maxGain = imp[0].gain
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <Card>
+                    <CardTitle>Feature Importance (Ball Model)</CardTitle>
+                    <p className="text-[12px] text-text-tertiary mt-1 mb-4">
+                      Top features by total gain — how much each feature reduces prediction error.
+                    </p>
+                    <div className="space-y-1.5">
+                      {imp.slice(0, 12).map((f, i) => (
+                        <div key={f.feature} className="flex items-center gap-3">
+                          <span className="stat text-[11px] text-text-tertiary w-4 text-right">{i + 1}</span>
+                          <span className="text-[12px] text-text-secondary w-40 truncate">{f.feature.replace(/_/g, ' ')}</span>
+                          <div className="flex-1 h-2 rounded-full bg-surface-3 overflow-hidden">
+                            <motion.div
+                              className="h-full rounded-full bg-accent/70"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${(f.gain / maxGain) * 100}%` }}
+                              transition={{ duration: 0.4, delay: i * 0.03 }}
+                            />
+                          </div>
+                          <span className="stat text-[11px] text-text-tertiary w-16 text-right">{f.gain.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </motion.div>
+              )
+            })()}
           </>
         )}
       </div>

@@ -17,13 +17,19 @@ const quickLinks = [
 ]
 
 export default function Dashboard() {
-  const [metrics, setMetrics] = useState<BacktestMetrics | null>(null)
+  const [t20Metrics, setT20Metrics] = useState<BacktestMetrics | null>(null)
+  const [odiMetrics, setOdiMetrics] = useState<BacktestMetrics | null>(null)
   const [health, setHealth] = useState<{ status: string; version: string } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.allSettled([api.getResults(), api.health()]).then(([m, h]) => {
-      if (m.status === 'fulfilled') setMetrics(m.value)
+    Promise.allSettled([
+      api.getResults('t20'),
+      api.getResults('odi'),
+      api.health(),
+    ]).then(([t20, odi, h]) => {
+      if (t20.status === 'fulfilled') setT20Metrics(t20.value)
+      if (odi.status === 'fulfilled') setOdiMetrics(odi.value)
       if (h.status === 'fulfilled') setHealth(h.value)
       setLoading(false)
     })
@@ -57,38 +63,60 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-4 gap-3">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-[88px] rounded-xl" />
-            ))
-          ) : (
-            <>
-              <StatCard
-                label="Test Matches"
-                value={metrics?.test_matches?.toLocaleString() ?? '—'}
-                sub="held-out"
-              />
-              <StatCard
-                label="Accuracy"
-                value={metrics?.accuracy != null ? `${(metrics.accuracy * 100).toFixed(1)}%` : '—'}
-                sub={metrics?.accuracy != null ? (metrics.accuracy > 0.55 ? 'above coin flip' : '') : ''}
-                trend={metrics?.accuracy != null ? (metrics.accuracy > 0.55 ? 'up' : 'neutral') : undefined}
-              />
-              <StatCard
-                label="Brier Score"
-                value={metrics?.brier_score?.toFixed(4) ?? '—'}
-                sub="baseline: 0.2500"
-              />
-              <StatCard
-                label="Kelly ROI"
-                value={metrics?.kelly_roi != null ? `${(metrics.kelly_roi * 100).toFixed(1)}%` : '—'}
-                trend={metrics?.kelly_roi != null ? (metrics.kelly_roi > 0 ? 'up' : 'down') : undefined}
-              />
-            </>
-          )}
-        </div>
+        {/* Format comparison cards */}
+        {loading ? (
+          <div className="grid grid-cols-2 gap-4">
+            {[0, 1].map((i) => (
+              <Skeleton key={i} className="h-44 rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { label: 'T20', metrics: t20Metrics, accent: 'text-accent' },
+              { label: 'ODI', metrics: odiMetrics, accent: 'text-role-bowl' },
+            ].map(({ label, metrics, accent }, i) => (
+              <motion.div
+                key={label}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <Card>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className={`text-[13px] font-semibold uppercase tracking-wider ${accent}`}>{label}</span>
+                    <span className="text-[11px] text-text-tertiary">{metrics?.test_matches?.toLocaleString() ?? '—'} test matches</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-text-tertiary">Accuracy</div>
+                      <div className="stat text-lg font-semibold text-text-primary mt-0.5">
+                        {metrics?.accuracy != null ? `${(metrics.accuracy * 100).toFixed(1)}%` : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-text-tertiary">Brier</div>
+                      <div className="stat text-lg font-semibold text-text-primary mt-0.5">
+                        {metrics?.brier_score?.toFixed(4) ?? '—'}
+                      </div>
+                      {metrics?.brier_score != null && (
+                        <div className={`text-[10px] ${metrics.brier_score < 0.25 ? 'text-success' : 'text-danger'}`}>
+                          {metrics.brier_score < 0.25 ? 'below' : 'above'} 0.25
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-text-tertiary">Kelly ROI</div>
+                      <div className="stat text-lg font-semibold text-text-primary mt-0.5">
+                        {metrics?.kelly_roi != null ? `${(metrics.kelly_roi * 100).toFixed(1)}%` : '—'}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
 
         {/* Quick links */}
         <div>
@@ -121,12 +149,15 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Calibration preview */}
-        {metrics?.calibration && metrics.calibration.length > 0 && (
+        {/* Calibration preview — T20 */}
+        {t20Metrics?.calibration && t20Metrics.calibration.length > 0 && (
           <Card>
-            <CardTitle>Calibration</CardTitle>
-            <div className="mt-3 flex items-end gap-1" style={{ height: 120 }}>
-              {metrics.calibration.map((bin) => {
+            <div className="flex items-center justify-between mb-3">
+              <CardTitle>Calibration</CardTitle>
+              <span className="text-[11px] font-medium uppercase tracking-wider text-accent/70">T20</span>
+            </div>
+            <div className="flex items-end gap-1" style={{ height: 120 }}>
+              {t20Metrics.calibration.map((bin) => {
                 const h = Math.max(4, bin.actual_mean * 100)
                 const expected = bin.predicted_mean * 100
                 return (
