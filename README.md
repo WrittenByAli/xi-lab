@@ -22,38 +22,49 @@ ODI, and Test cricket.
 | Policy models (batting order + bowling plan) | Done |
 | Monte Carlo simulator (vectorized, CRN) | Done |
 | ILP optimizer + racing search | Done |
-| Backtest evaluator (Brier, log loss, calibration) | Done |
+| Backtest evaluator (calibrated logistic) | Done |
 | FastAPI backend (6 routers, 11 endpoints) | Done |
-| CI/CD (GitHub Actions, Docker) | Done |
-| T20 format (Brier 0.23, accuracy 60%) | Done |
-| ODI format (Brier 0.26, accuracy 55%) | Done |
+| CI/CD (GitHub Actions, Docker Compose) | Done |
+| T20 format (Brier 0.236, accuracy 59.5%) | Done |
+| ODI format (Brier 0.257, accuracy 55.0%) | Done |
 | Test format | Planned |
 | React frontend (dark theme, 5 pages) | Done |
+| 112 tests passing | Done |
 
 ---
 
-## Reproduce everything
+## Quick start
 
 ```bash
 # 1. Install
 pip install -e ".[dev]"
-pre-commit install
 
 # 2. Download data (Cricsheet, ~2 GB)
 make download
 
-# 3. Full pipeline: parse → features → train → evaluate
-make all        # runs dvc repro
+# 3. Parse and build features
+make parse
+make features
 
-# 4. Tests
+# 4. Train all models (T20 + ODI)
+make train
+
+# 5. Backtest
+make backtest
+
+# 6. Tests
 make test
 
-# 5. Serve locally
-make serve
+# 7. Serve API + frontend
+make serve          # backend on :8000
+make serve-frontend # frontend on :3000
 ```
 
-One command (`make all`) reproduces every result from raw data.
-See `RESULTS.md` for all model metrics, calibration plots and the backtest.
+Or with Docker:
+```bash
+docker compose up
+# frontend on :3000, API on :8000
+```
 
 ---
 
@@ -61,14 +72,15 @@ See `RESULTS.md` for all model metrics, calibration plots and the backtest.
 
 ```
 DATA      Cricsheet JSON → Parquet (balls, innings, matches, lineups)
-FEATURES  Monthly as-of snapshots, venue profiles, team Elo
-MODELS    A. League-adjusted ability (empirical Bayes)
-          B. Ball-outcome model (calibrated LightGBM)
-          C. Batting-order + bowling-allocation policies (cond. logit)
-          D. Match simulator (vectorized Monte Carlo, posterior sampling)
+FEATURES  Monthly as-of snapshots (leakage-proof, 730-day decay)
+MODELS    A. Ability ratings (empirical Bayes shrinkage, per-format)
+          B. Ball-outcome model (LightGBM 9-class multiclass)
+          C. Batting-order + bowling-allocation policies
+          D. Match simulator (vectorized Monte Carlo, CRN)
           E. Selection optimizer (ILP shortlist → racing search → tie set)
-SERVING   FastAPI + React dashboard
-MLOPS     MLflow, DVC, Docker Compose, GitHub Actions
+EVAL      Calibrated logistic regression on z-scored team rating diffs
+SERVING   FastAPI backend + React/TypeScript frontend
+DEPLOY    Docker Compose, GitHub Actions CI
 ```
 
 ---
@@ -84,12 +96,13 @@ MLOPS     MLflow, DVC, Docker Compose, GitHub Actions
   so comparisons are paired and noise is minimal.
 - **Tie sets.** The output is the best XI *and* every XI statistically
   indistinguishable from it — with a core (always selected) and flexible players.
+- **Calibrated backtest.** Logistic regression fitted on validation set with
+  z-score normalization, evaluated on held-out test set.
 
 ---
 
 ## API
 
-Start the server:
 ```bash
 uvicorn backend.app.main:app --reload
 ```
@@ -103,33 +116,48 @@ uvicorn backend.app.main:app --reload
 | `/player/{id}` | GET | Player profile with phase ratings |
 | `/player/search?q=` | GET | Search players by name |
 | `/live` | GET | Prediction log with results |
-| `/results` | GET | Backtest metrics |
+| `/results?format=t20` | GET | Backtest metrics (t20/odi) |
 | `/results/ability` | GET | Ability model metrics |
-| `/results/ball` | GET | Ball model metrics |
+| `/results/ball` | GET | Ball model metrics + feature importance |
+| `/results/policies` | GET | Policy model metrics |
 | `/results/all` | GET | All evaluation metrics |
 
-Interactive docs at `http://localhost:8000/docs` (Swagger UI).
+Interactive docs at `http://localhost:8000/docs`.
 
 ---
 
-## Live predictions
+## Frontend
 
-XI recommendations are published as GitHub Releases before every toss.
-Each release includes the prediction JSON and the model version hash.
-Results are scored after the match.
+React 19 + TypeScript + Vite + Tailwind CSS v4.
 
-See [live/predictions](live/predictions/) and [live/results](live/results/).
+| Page | Path | Description |
+|------|------|-------------|
+| Dashboard | `/` | Health status, T20/ODI comparison, calibration preview |
+| Squad Builder | `/squad` | Build squad, get optimal XI with batting order + bowling plan |
+| Simulator | `/simulate` | Head-to-head simulation with WP bar + score distributions |
+| Players | `/players` | Search, profile cards, phase breakdown bars |
+| Results | `/results` | Calibration scatter plot, feature importance, model metrics |
+
+All pages support T20/ODI format toggle.
 
 ---
 
-## Results
+## Model performance
 
-See [RESULTS.md](RESULTS.md) for:
-- Ball model log loss vs baselines, with ablations
-- Calibration and reliability curves
-- Pre-match backtest vs team Elo (E7)
-- Lineup sensitivity test (E8)
-- Selector study: where the model and selectors disagree
+### T20 (3,512 test matches)
+- **Brier score**: 0.236 (baseline: 0.250)
+- **Accuracy**: 59.5% (baseline: 50%)
+- **Log loss**: 0.664 (baseline: 0.693)
+- **Kelly ROI**: 5.7%
+
+### ODI (469 test matches)
+- **Brier score**: 0.257 (baseline: 0.250)
+- **Accuracy**: 55.0%
+- **Kelly ROI**: 7.3%
+
+### Ball-outcome model
+- **T20**: log_loss 1.56, accuracy 43% (9-class)
+- **ODI**: log_loss 1.29, accuracy 53% (9-class)
 
 ---
 
@@ -138,12 +166,8 @@ See [RESULTS.md](RESULTS.md) for:
 - Cricsheet has no pitch reports. Conditions are approximated from venue history.
 - Uncapped players with little data get wide uncertainty intervals.
 - Domestic coverage varies by country; some uncapped players have PSL/IPL data only.
-- The simulator assumes both teams bat their full XI in the standard order;
-  declarations and follow-on (Test) are modelled separately from Phase 3.
+- ODI backtest is marginal (Brier 0.257 vs 0.250 baseline) due to smaller validation set.
 - This is decision support, not a replacement for selectors.
-  A model that beats Elo on average can still be wrong in any specific match.
-
-Full limitations: [LIMITATIONS.md](LIMITATIONS.md)
 
 ---
 
