@@ -50,13 +50,13 @@ DOWNLOADS: list[tuple[str, str]] = [
     ("t20s",       "https://cricsheet.org/downloads/psl_json.zip"),
     ("t20s",       "https://cricsheet.org/downloads/bbl_json.zip"),
     ("t20s",       "https://cricsheet.org/downloads/cpl_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/t20_blast_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/sa20_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/ilt20_json.zip"),
+    ("t20s",       "https://cricsheet.org/downloads/ntb_json.zip"),
+    ("t20s",       "https://cricsheet.org/downloads/sat_json.zip"),
+    ("t20s",       "https://cricsheet.org/downloads/ilt_json.zip"),
     ("t20s",       "https://cricsheet.org/downloads/bpl_json.zip"),
     ("t20s",       "https://cricsheet.org/downloads/lpl_json.zip"),
     ("t20s",       "https://cricsheet.org/downloads/mlc_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/super_smash_json.zip"),
+    ("t20s",       "https://cricsheet.org/downloads/ssm_json.zip"),
     # ── List A ─────────────────────────────────────────────────────────────
     ("listA",      "https://cricsheet.org/downloads/odis_json.zip"),   # reuse ODI
     # ── Player register ────────────────────────────────────────────────────

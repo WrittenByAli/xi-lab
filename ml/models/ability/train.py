@@ -132,12 +132,11 @@ def apply_shrinkage(df: pd.DataFrame, priors: dict, prior_n: float) -> pd.DataFr
     bowl_ratings = np.full(len(df), np.nan)
     bowl_uncerts = np.full(len(df), np.nan)
 
-    for i, row in df.iterrows():
+    for pos, (_, row) in enumerate(df.iterrows()):
         role = row["role"]
         fmt = row["format"]
         group = priors.get(role, {}).get(fmt, {})
 
-        # --- Batting: combine SR and avg into a single rating ---
         sr_prior = group.get("bat_sr_wtd", {}).get("mean", 0.0)
         avg_prior = group.get("bat_avg_wtd", {}).get("mean", 0.0)
 
@@ -150,11 +149,9 @@ def apply_shrinkage(df: pd.DataFrame, priors: dict, prior_n: float) -> pd.DataFr
         sr_shrunk, sr_unc = shrink(sr_val, bat_n, sr_prior, prior_n)
         avg_shrunk, avg_unc = shrink(avg_val, bat_n, avg_prior, prior_n)
 
-        # Composite batting rating: geometric-style blend of SR and avg
-        bat_ratings[i] = sr_shrunk * 0.6 + avg_shrunk * 0.4
-        bat_uncerts[i] = (sr_unc + avg_unc) / 2.0
+        bat_ratings[pos] = sr_shrunk * 0.6 + avg_shrunk * 0.4
+        bat_uncerts[pos] = (sr_unc + avg_unc) / 2.0
 
-        # --- Bowling: combine economy and SR ---
         econ_prior = group.get("bowl_econ_wtd", {}).get("mean", 0.0)
         bowl_sr_prior = group.get("bowl_sr_wtd", {}).get("mean", 0.0)
 
@@ -167,10 +164,8 @@ def apply_shrinkage(df: pd.DataFrame, priors: dict, prior_n: float) -> pd.DataFr
         econ_shrunk, econ_unc = shrink(econ_val, bowl_n, econ_prior, prior_n)
         bowl_sr_shrunk, bowl_sr_unc = shrink(bowl_sr_val, bowl_n, bowl_sr_prior, prior_n)
 
-        # Bowling rating: lower is better for both econ and SR, so invert
-        # Use negative sum so higher rating = better bowler
-        bowl_ratings[i] = -(econ_shrunk * 0.5 + bowl_sr_shrunk * 0.5)
-        bowl_uncerts[i] = (econ_unc + bowl_sr_unc) / 2.0
+        bowl_ratings[pos] = -(econ_shrunk * 0.5 + bowl_sr_shrunk * 0.5)
+        bowl_uncerts[pos] = (econ_unc + bowl_sr_unc) / 2.0
 
     return df.assign(
         bat_rating=bat_ratings,
