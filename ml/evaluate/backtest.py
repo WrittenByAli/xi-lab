@@ -1,23 +1,13 @@
 """
-Backtest the full pipeline: ability model + ball model + simulator vs actual results.
+Backtest the full pipeline: ability ratings → calibrated WP → actual results.
 
-For each match in the test period:
-  1. Load as-of player snapshots and ability ratings
-  2. Build probability vectors from the ball model
-  3. Simulate N innings and compute predicted win probability
-  4. Compare predicted WP with actual match outcome
+Two-stage approach:
+  1. Fit logistic regression on validation set (team rating diffs → actual outcomes)
+  2. Evaluate on held-out test set
 
-Metrics:
-  - Brier score (calibration)
-  - Log loss
-  - Calibration curve (binned predicted vs actual)
-  - ROI on hypothetical fair-odds betting
+Metrics: Brier score, log loss, calibration curve, accuracy, Kelly ROI.
 
 Output: data/processed/metrics/backtest.json
-
-Usage:
-    python ml/evaluate/backtest.py
-    python ml/evaluate/backtest.py --format t20 --n-sims 5000
 """
 
 from __future__ import annotations
@@ -34,36 +24,11 @@ ROOT = Path(__file__).resolve().parents[2]
 PARAMS = yaml.safe_load((ROOT / "params.yaml").read_text())
 
 
-def _load_models(fmt: str) -> dict:
-    """Load all model artifacts needed for backtesting."""
-    models_dir = ROOT / "data" / "processed" / "models"
-    artifacts = {}
-
-    ability_dir = models_dir / "ability"
-    if (ability_dir / "ratings.parquet").exists():
-        artifacts["ratings"] = pd.read_parquet(ability_dir / "ratings.parquet")
-    if (ability_dir / "group_priors.json").exists():
-        artifacts["priors"] = json.loads((ability_dir / "group_priors.json").read_text())
-
-    ball_dir = models_dir / "ball"
-    if (ball_dir / "model.lgb").exists():
-        try:
-            import lightgbm as lgb
-            artifacts["ball_model"] = lgb.Booster(model_file=str(ball_dir / "model.lgb"))
-        except Exception:
-            artifacts["ball_model"] = None
-
-    policy_dir = models_dir / "policies"
-    if (policy_dir / "batting_order_model.json").exists():
-        artifacts["batting_policy"] = json.loads(
-            (policy_dir / "batting_order_model.json").read_text()
-        )
-    if (policy_dir / "bowling_plan_model.json").exists():
-        artifacts["bowling_policy"] = json.loads(
-            (policy_dir / "bowling_plan_model.json").read_text()
-        )
-
-    return artifacts
+def _load_ratings() -> pd.DataFrame | None:
+    path = ROOT / "data" / "processed" / "models" / "ability" / "ratings.parquet"
+    if path.exists():
+        return pd.read_parquet(path)
+    return None
 
 
 def _get_team_ratings(
@@ -73,7 +38,6 @@ def _get_team_ratings(
     team: str,
     match_date: pd.Timestamp,
 ) -> pd.DataFrame:
-    """Get ability ratings for each player in a team for a specific match."""
     team_players = lineups[
         (lineups["match_id"] == match_id) & (lineups["team"] == team)
     ]["player_id"].unique()
@@ -88,94 +52,155 @@ def _get_team_ratings(
         return pd.DataFrame()
 
     latest = team_ratings.groupby("player_id")["snapshot_month"].max().reset_index()
-    team_ratings = team_ratings.merge(latest, on=["player_id", "snapshot_month"])
-    return team_ratings
+    return team_ratings.merge(latest, on=["player_id", "snapshot_month"])
 
 
-def _predict_win_prob_simple(
-    team1_ratings: pd.DataFrame,
-    team2_ratings: pd.DataFrame,
-) -> float:
-    """Simple rating-based win probability (logistic model)."""
-    if team1_ratings.empty or team2_ratings.empty:
-        return 0.5
+def _compute_features(t1: pd.DataFrame, t2: pd.DataFrame) -> dict | None:
+    """Extract normalized team-level features from individual ratings."""
+    if t1.empty or t2.empty:
+        return None
 
-    t1_bat = team1_ratings["bat_rating"].mean() if "bat_rating" in team1_ratings else 0.5
-    t1_bowl = team1_ratings["bowl_rating"].mean() if "bowl_rating" in team1_ratings else 0.5
-    t2_bat = team2_ratings["bat_rating"].mean() if "bat_rating" in team2_ratings else 0.5
-    t2_bowl = team2_ratings["bowl_rating"].mean() if "bowl_rating" in team2_ratings else 0.5
+    def _team_stats(df):
+        bat = df["bat_rating"].dropna()
+        bowl = df["bowl_rating"].dropna()
+        return {
+            "bat_mean": bat.mean() if len(bat) > 0 else 0,
+            "bat_top3": bat.nlargest(3).mean() if len(bat) >= 3 else (bat.mean() if len(bat) > 0 else 0),
+            "bowl_mean": bowl.mean() if len(bowl) > 0 else 0,
+            "bowl_top3": bowl.nsmallest(3).mean() if len(bowl) >= 3 else (bowl.mean() if len(bowl) > 0 else 0),
+            "n_players": len(df),
+        }
 
-    t1_strength = t1_bat + t1_bowl
-    t2_strength = t2_bat + t2_bowl
+    s1 = _team_stats(t1)
+    s2 = _team_stats(t2)
 
-    diff = t1_strength - t2_strength
-    wp = 1 / (1 + np.exp(-diff * 2))
-    return float(np.clip(wp, 0.01, 0.99))
+    return {
+        "bat_diff": s1["bat_mean"] - s2["bat_mean"],
+        "bat_top3_diff": s1["bat_top3"] - s2["bat_top3"],
+        "bowl_diff": s1["bowl_mean"] - s2["bowl_mean"],
+        "bowl_top3_diff": s1["bowl_top3"] - s2["bowl_top3"],
+        "n1": s1["n_players"],
+        "n2": s2["n_players"],
+    }
 
 
-def backtest(fmt: str = "t20", n_sims: int = 5000) -> dict:
-    """Run backtest on test-period matches."""
+def _build_dataset(
+    matches: pd.DataFrame,
+    lineups: pd.DataFrame,
+    ratings: pd.DataFrame,
+    date_start: str | None,
+    date_end: str | None,
+    label: str,
+) -> pd.DataFrame:
+    """Build features + labels for a date range of matches."""
+    mask = matches["result_type"] == "normal"
+    if date_start:
+        mask = mask & (matches["date"] >= date_start)
+    if date_end:
+        mask = mask & (matches["date"] <= date_end)
+
+    subset = matches[mask]
+    print(f"  [{label}] {len(subset)} matches")
+
+    rows = []
+    for _, match in subset.iterrows():
+        t1 = _get_team_ratings(ratings, lineups, match["match_id"], match["team1"], match["date"])
+        t2 = _get_team_ratings(ratings, lineups, match["match_id"], match["team2"], match["date"])
+        feats = _compute_features(t1, t2)
+        if feats is None:
+            continue
+
+        actual = 1.0 if match["winner"] == match["team1"] else 0.0
+        rows.append({
+            "match_id": match["match_id"],
+            "date": str(match["date"].date()),
+            "team1": match["team1"],
+            "team2": match["team2"],
+            "actual": actual,
+            **feats,
+        })
+
+    return pd.DataFrame(rows)
+
+
+def _fit_logistic(X: np.ndarray, y: np.ndarray, lr: float = 0.01, epochs: int = 500) -> tuple[np.ndarray, float]:
+    """Fit logistic regression with gradient descent (no sklearn dependency for this)."""
+    n_features = X.shape[1]
+    w = np.zeros(n_features)
+    b = 0.0
+
+    for _ in range(epochs):
+        z = X @ w + b
+        p = 1 / (1 + np.exp(-np.clip(z, -30, 30)))
+        error = p - y
+        grad_w = (X.T @ error) / len(y) + 0.001 * w
+        grad_b = error.mean()
+        w -= lr * grad_w
+        b -= lr * grad_b
+
+    return w, b
+
+
+def _predict_logistic(X: np.ndarray, w: np.ndarray, b: float) -> np.ndarray:
+    z = X @ w + b
+    return 1 / (1 + np.exp(-np.clip(z, -30, 30)))
+
+
+def backtest(fmt: str = "t20") -> dict:
     print(f"[{fmt}] Loading data...")
     matches = pd.read_parquet(ROOT / "data" / "interim" / fmt / "matches.parquet")
     lineups = pd.read_parquet(ROOT / "data" / "interim" / fmt / "lineups.parquet")
     matches["date"] = pd.to_datetime(matches["date"])
 
-    test_start = PARAMS["splits"]["test_start"]
-    test_matches = matches[
-        (matches["date"] >= test_start) & (matches["result_type"] == "normal")
-    ].copy()
+    ratings = _load_ratings()
+    if ratings is None:
+        return {"format": fmt, "test_matches": 0, "error": "no_ratings_available"}
 
-    print(f"[{fmt}] {len(test_matches)} test matches from {test_start}")
+    splits = PARAMS["splits"]
+    val_start = splits["val_start"]
+    val_end = splits["val_end"]
+    test_start = splits["test_start"]
 
-    artifacts = _load_models(fmt)
+    print(f"[{fmt}] Building validation set ({val_start} to {val_end})...")
+    val_df = _build_dataset(matches, lineups, ratings, val_start, val_end, "val")
 
-    if "ratings" not in artifacts:
-        print("[WARNING] No ability ratings found, using default 0.5 WP")
-        return {
-            "format": fmt,
-            "test_matches": len(test_matches),
-            "error": "no_ratings_available",
-        }
+    print(f"[{fmt}] Building test set ({test_start} onwards)...")
+    test_df = _build_dataset(matches, lineups, ratings, test_start, None, "test")
 
-    ratings = artifacts["ratings"]
-    predictions = []
+    if val_df.empty or test_df.empty:
+        return {"format": fmt, "test_matches": 0, "error": "insufficient_data"}
 
-    for i, (_, match) in enumerate(test_matches.iterrows()):
-        if i % 100 == 0 and i > 0:
-            print(f"  Processed {i}/{len(test_matches)} matches")
+    feature_cols = ["bat_diff", "bat_top3_diff", "bowl_diff", "bowl_top3_diff"]
+    X_val = val_df[feature_cols].values.astype(float)
+    y_val = val_df["actual"].values.astype(float)
+    X_test = test_df[feature_cols].values.astype(float)
+    y_test = test_df["actual"].values.astype(float)
 
-        t1_ratings = _get_team_ratings(
-            ratings, lineups, match["match_id"], match["team1"], match["date"]
-        )
-        t2_ratings = _get_team_ratings(
-            ratings, lineups, match["match_id"], match["team2"], match["date"]
-        )
+    # Z-score normalize using validation stats
+    mu = X_val.mean(axis=0)
+    sigma = X_val.std(axis=0)
+    sigma[sigma < 1e-8] = 1.0
+    X_val_norm = (X_val - mu) / sigma
+    X_test_norm = (X_test - mu) / sigma
 
-        wp = _predict_win_prob_simple(t1_ratings, t2_ratings)
-        actual = 1.0 if match["winner"] == match["team1"] else 0.0
+    print(f"[{fmt}] Fitting logistic model on {len(val_df)} validation matches...")
+    w, b = _fit_logistic(X_val_norm, y_val, lr=0.1, epochs=2000)
 
-        predictions.append({
-            "match_id": match["match_id"],
-            "date": str(match["date"].date()),
-            "team1": match["team1"],
-            "team2": match["team2"],
-            "predicted_wp": wp,
-            "actual": actual,
-        })
+    print(f"[{fmt}] Feature weights: {dict(zip(feature_cols, [round(float(x), 4) for x in w]))}")
+    print(f"[{fmt}] Bias: {b:.4f}")
 
-    if not predictions:
-        return {"format": fmt, "test_matches": 0, "error": "no_predictions"}
-
-    pred_df = pd.DataFrame(predictions)
-    predicted = pred_df["predicted_wp"].values
-    actual = pred_df["actual"].values
+    # Evaluate on test
+    predicted = _predict_logistic(X_test_norm, w, b)
+    predicted = np.clip(predicted, 0.01, 0.99)
+    actual = y_test
 
     brier = float(np.mean((predicted - actual) ** 2))
     log_loss = float(-np.mean(
-        actual * np.log(np.clip(predicted, 1e-8, 1)) +
-        (1 - actual) * np.log(np.clip(1 - predicted, 1e-8, 1))
+        actual * np.log(predicted) + (1 - actual) * np.log(1 - predicted)
     ))
+    accuracy = float(np.mean((predicted > 0.5) == (actual > 0.5)))
 
+    # Calibration curve
     n_bins = 10
     bin_edges = np.linspace(0, 1, n_bins + 1)
     calibration = []
@@ -189,8 +214,7 @@ def backtest(fmt: str = "t20", n_sims: int = 5000) -> dict:
                 "count": int(mask.sum()),
             })
 
-    accuracy = float(np.mean((predicted > 0.5) == (actual > 0.5)))
-
+    # Kelly ROI
     kelly_returns = []
     for p, a in zip(predicted, actual):
         if p > 0.5:
@@ -201,7 +225,8 @@ def backtest(fmt: str = "t20", n_sims: int = 5000) -> dict:
 
     metrics = {
         "format": fmt,
-        "test_matches": len(predictions),
+        "test_matches": len(test_df),
+        "val_matches": len(val_df),
         "test_period": f"{test_start} onwards",
         "brier_score": round(brier, 6),
         "log_loss": round(log_loss, 6),
@@ -209,11 +234,14 @@ def backtest(fmt: str = "t20", n_sims: int = 5000) -> dict:
         "kelly_roi": round(roi, 6),
         "calibration": calibration,
         "baseline_brier": 0.25,
+        "feature_weights": dict(zip(feature_cols, [round(float(x), 4) for x in w])),
+        "bias": round(float(b), 4),
+        "normalization": {"mean": mu.tolist(), "std": sigma.tolist()},
     }
 
-    print(f"[{fmt}] Results:")
+    print(f"\n[{fmt}] Test Results:")
     print(f"  Brier score:  {brier:.4f} (baseline: 0.2500)")
-    print(f"  Log loss:     {log_loss:.4f}")
+    print(f"  Log loss:     {log_loss:.4f} (baseline: 0.6931)")
     print(f"  Accuracy:     {accuracy:.1%}")
     print(f"  Kelly ROI:    {roi:.4f}")
 
@@ -223,16 +251,15 @@ def backtest(fmt: str = "t20", n_sims: int = 5000) -> dict:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--format", choices=["t20", "odi", "test"], default="t20")
-    parser.add_argument("--n-sims", type=int, default=5000)
     args = parser.parse_args()
 
-    metrics = backtest(args.format, args.n_sims)
+    metrics = backtest(args.format)
 
     out_dir = ROOT / "data" / "processed" / "metrics"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "backtest.json"
+    out_path = out_dir / f"backtest_{args.format}.json"
     out_path.write_text(json.dumps(metrics, indent=2))
-    print(f"Metrics written to {out_path}")
+    print(f"\nMetrics written to {out_path}")
 
 
 if __name__ == "__main__":

@@ -334,9 +334,18 @@ def main() -> None:
     model_dir = ROOT / "data" / "processed" / "models" / "ability"
     model_dir.mkdir(parents=True, exist_ok=True)
 
-    ratings_path = model_dir / "ratings.parquet"
-    all_ratings.to_parquet(ratings_path, index=False, engine="pyarrow")
-    print(f"Ratings written to {ratings_path}  ({len(all_ratings):,} rows)")
+    fmt_path = model_dir / f"ratings_{fmt}.parquet"
+    all_ratings.to_parquet(fmt_path, index=False, engine="pyarrow")
+    print(f"Ratings written to {fmt_path}  ({len(all_ratings):,} rows)")
+
+    # Merge all format-specific ratings into a combined file
+    parts = []
+    for f in model_dir.glob("ratings_*.parquet"):
+        parts.append(pd.read_parquet(f))
+    if parts:
+        merged = pd.concat(parts, ignore_index=True)
+        merged.to_parquet(model_dir / "ratings.parquet", index=False, engine="pyarrow")
+        print(f"Combined ratings: {len(merged):,} rows across {len(parts)} format(s)")
 
     priors_path = model_dir / "group_priors.json"
     with open(priors_path, "w") as f:

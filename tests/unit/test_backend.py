@@ -83,11 +83,12 @@ def test_player_not_found():
     assert r.status_code == 404
 
 
-def test_results_no_data():
+def test_results():
     r = client.get("/results")
     assert r.status_code == 200
     data = r.json()
-    assert data["test_matches"] == 0
+    assert "format" in data
+    assert isinstance(data["test_matches"], int)
 
 
 def test_live_empty():

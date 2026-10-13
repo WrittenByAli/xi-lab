@@ -17,7 +17,9 @@ METRICS_DIR = ROOT / "data" / "processed" / "metrics"
 
 @router.get("", response_model=BacktestMetrics)
 def get_backtest_results(format: str = Query("t20", pattern="^(t20|odi|test)$")):
-    path = METRICS_DIR / "backtest.json"
+    path = METRICS_DIR / f"backtest_{format}.json"
+    if not path.exists():
+        path = METRICS_DIR / "backtest.json"
     if not path.exists():
         return BacktestMetrics(format=format, test_matches=0)
 
