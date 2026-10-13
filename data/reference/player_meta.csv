@@ -1,147 +1,223 @@
 player_id,name,bat_hand,bowl_arm,bowl_type,is_keeper,source,verified
-# This file is curated by hand for the top ~1000 players by balls involved.
-# Run: python ml/ingest/coverage.py to see which players to add next.
-# Format: bat_hand in {R,L,unknown}, bowl_arm in {R,L,none,unknown},
-#         bowl_type in {pace,off,leg,left_orth,left_wrist,none,unknown}
-# Players not in this file fall back to style_clf inference or 'unknown'.
-# Cricsheet player IDs come from data/reference/people.csv (downloaded by download.py)
+# player_id = the string Cricsheet uses in ball-by-ball JSON (batter/bowler field).
+# Run: python ml/ingest/coverage.py to see the top uncovered player_ids to add.
+# bat_hand: R/L/unknown  bowl_arm: R/L/none/unknown
+# bowl_type: pace/off/leg/left_orth/left_wrist/none/unknown
 # ── PAKISTAN ──────────────────────────────────────────────────────────────────
-babar-azam-1,Babar Azam,R,R,none,False,manual,True
-mohammad-rizwan-1,Mohammad Rizwan,R,R,none,True,manual,True
-shaheen-shah-afridi-1,Shaheen Shah Afridi,L,L,pace,False,manual,True
-haris-rauf-1,Haris Rauf,R,R,pace,False,manual,True
-shadab-khan-1,Shadab Khan,R,R,leg,False,manual,True
-imad-wasim-1,Imad Wasim,L,L,left_orth,False,manual,True
-fakhar-zaman-1,Fakhar Zaman,L,R,none,False,manual,True
-saim-ayub-1,Saim Ayub,L,R,none,False,manual,True
-naseem-shah-1,Naseem Shah,R,R,pace,False,manual,True
-mohammad-amir-1,Mohammad Amir,L,L,pace,False,manual,True
-usman-khan-shinwari-1,Usman Khan,R,R,pace,False,manual,True
-abrar-ahmed-1,Abrar Ahmed,R,R,leg,False,manual,True
-azam-khan-1,Azam Khan,R,R,none,True,manual,True
-iftikhar-ahmed-1,Iftikhar Ahmed,R,R,off,False,manual,True
-mohammad-hafeez-1,Mohammad Hafeez,R,R,off,False,manual,True
-shoaib-malik-1,Shoaib Malik,R,R,off,False,manual,True
-asif-ali-1,Asif Ali,R,R,none,False,manual,True
-zaman-khan-1,Zaman Khan,L,L,pace,False,manual,True
-khushdil-shah-1,Khushdil Shah,L,L,left_orth,False,manual,True
-mohammad-wasim-jr-1,Mohammad Wasim Jr,R,R,pace,False,manual,True
+Babar Azam,Babar Azam,R,R,none,False,manual,True
+Mohammad Rizwan,Mohammad Rizwan,R,R,none,True,manual,True
+Shaheen Shah Afridi,Shaheen Shah Afridi,L,L,pace,False,manual,True
+Haris Rauf,Haris Rauf,R,R,pace,False,manual,True
+Shadab Khan,Shadab Khan,R,R,leg,False,manual,True
+Imad Wasim,Imad Wasim,L,L,left_orth,False,manual,True
+Fakhar Zaman,Fakhar Zaman,L,R,none,False,manual,True
+Saim Ayub,Saim Ayub,L,R,none,False,manual,True
+Naseem Shah,Naseem Shah,R,R,pace,False,manual,True
+Mohammad Amir,Mohammad Amir,L,L,pace,False,manual,True
+Abrar Ahmed,Abrar Ahmed,R,R,leg,False,manual,True
+Azam Khan,Azam Khan,R,R,none,True,manual,True
+Iftikhar Ahmed,Iftikhar Ahmed,R,R,off,False,manual,True
+Mohammad Hafeez,Mohammad Hafeez,R,R,off,False,manual,True
+Shoaib Malik,Shoaib Malik,R,R,off,False,manual,True
+Asif Ali,Asif Ali,R,R,none,False,manual,True
+Zaman Khan,Zaman Khan,L,L,pace,False,manual,True
+Khushdil Shah,Khushdil Shah,L,L,left_orth,False,manual,True
+Mohammad Wasim,Mohammad Wasim,R,R,pace,False,manual,True
+Usman Khan,Usman Khan,R,R,pace,False,manual,True
 # ── INDIA ─────────────────────────────────────────────────────────────────────
-rohit-sharma-1,Rohit Sharma,R,R,off,False,manual,True
-virat-kohli-1,Virat Kohli,R,R,none,False,manual,True
-suryakumar-yadav-1,Suryakumar Yadav,R,R,none,False,manual,True
-kl-rahul-1,KL Rahul,R,R,none,True,manual,True
-rishabh-pant-1,Rishabh Pant,L,R,none,True,manual,True
-hardik-pandya-1,Hardik Pandya,R,R,pace,False,manual,True
-ravindra-jadeja-1,Ravindra Jadeja,L,L,left_orth,False,manual,True
-axar-patel-1,Axar Patel,L,L,left_orth,False,manual,True
-jasprit-bumrah-1,Jasprit Bumrah,R,R,pace,False,manual,True
-mohammed-shami-1,Mohammed Shami,R,R,pace,False,manual,True
-arshdeep-singh-1,Arshdeep Singh,L,L,pace,False,manual,True
-yuzvendra-chahal-1,Yuzvendra Chahal,R,R,leg,False,manual,True
-kuldeep-yadav-1,Kuldeep Yadav,L,L,left_wrist,False,manual,True
-shubman-gill-1,Shubman Gill,R,R,none,False,manual,True
-tilak-varma-1,Tilak Varma,L,R,none,False,manual,True
-yashasvi-jaiswal-1,Yashasvi Jaiswal,L,R,none,False,manual,True
-sanju-samson-1,Sanju Samson,R,R,none,True,manual,True
-ravi-bishnoi-1,Ravi Bishnoi,R,R,leg,False,manual,True
-washington-sundar-1,Washington Sundar,R,R,off,False,manual,True
-deepak-chahar-1,Deepak Chahar,R,R,pace,False,manual,True
+V Kohli,Virat Kohli,R,R,none,False,manual,True
+RG Sharma,Rohit Sharma,R,R,off,False,manual,True
+Shubman Gill,Shubman Gill,R,R,none,False,manual,True
+KL Rahul,KL Rahul,R,R,none,True,manual,True
+RR Pant,Rishabh Pant,L,R,none,True,manual,True
+RSK Samson,Sanju Samson,R,R,none,True,manual,True
+HH Pandya,Hardik Pandya,R,R,pace,False,manual,True
+RA Jadeja,Ravindra Jadeja,L,L,left_orth,False,manual,True
+AR Patel,Axar Patel,L,L,left_orth,False,manual,True
+JJ Bumrah,Jasprit Bumrah,R,R,pace,False,manual,True
+Mohammed Shami,Mohammed Shami,R,R,pace,False,manual,True
+Arshdeep Singh,Arshdeep Singh,L,L,pace,False,manual,True
+YS Chahal,Yuzvendra Chahal,R,R,leg,False,manual,True
+Kuldeep Yadav,Kuldeep Yadav,L,L,left_wrist,False,manual,True
+Washington Sundar,Washington Sundar,R,R,off,False,manual,True
+Ravi Bishnoi,Ravi Bishnoi,R,R,leg,False,manual,True
+Tilak Varma,Tilak Varma,L,R,none,False,manual,True
+Yashasvi Jaiswal,Yashasvi Jaiswal,L,R,none,False,manual,True
+S Dhawan,Shikhar Dhawan,L,R,none,False,manual,True
+RD Chahar,Deepak Chahar,R,R,pace,False,manual,True
 # ── AUSTRALIA ─────────────────────────────────────────────────────────────────
-david-warner-1,David Warner,L,R,none,False,manual,True
-aaron-finch-1,Aaron Finch,R,R,none,False,manual,True
-travis-head-1,Travis Head,L,R,off,False,manual,True
-mitchell-marsh-1,Mitchell Marsh,R,R,pace,False,manual,True
-glenn-maxwell-1,Glenn Maxwell,R,R,off,False,manual,True
-tim-david-1,Tim David,R,R,none,False,manual,True
-matthew-wade-1,Matthew Wade,L,R,none,True,manual,True
-josh-inglis-1,Josh Inglis,R,R,none,True,manual,True
-pat-cummins-1,Pat Cummins,R,R,pace,False,manual,True
-mitchell-starc-1,Mitchell Starc,L,L,pace,False,manual,True
-josh-hazlewood-1,Josh Hazlewood,R,R,pace,False,manual,True
-adam-zampa-1,Adam Zampa,R,R,leg,False,manual,True
-cameron-green-1,Cameron Green,R,R,pace,False,manual,True
-steve-smith-1,Steve Smith,R,R,leg,False,manual,True
-marcus-stoinis-1,Marcus Stoinis,R,R,pace,False,manual,True
-matthew-short-1,Matthew Short,R,R,off,False,manual,True
+DA Warner,David Warner,L,R,none,False,manual,True
+AJ Finch,Aaron Finch,R,R,none,False,manual,True
+TM Head,Travis Head,L,R,off,False,manual,True
+MR Marsh,Mitchell Marsh,R,R,pace,False,manual,True
+GJ Maxwell,Glenn Maxwell,R,R,off,False,manual,True
+Tim David,Tim David,R,R,none,False,manual,True
+MS Wade,Matthew Wade,L,R,none,True,manual,True
+JP Inglis,Josh Inglis,R,R,none,True,manual,True
+PJ Cummins,Pat Cummins,R,R,pace,False,manual,True
+MA Starc,Mitchell Starc,L,L,pace,False,manual,True
+JR Hazlewood,Josh Hazlewood,R,R,pace,False,manual,True
+AC Zampa,Adam Zampa,R,R,leg,False,manual,True
+SPD Smith,Steve Smith,R,R,leg,False,manual,True
+MP Stoinis,Marcus Stoinis,R,R,pace,False,manual,True
+DJM Short,Matthew Short,R,R,off,False,manual,True
+Cameron Green,Cameron Green,R,R,pace,False,manual,True
 # ── ENGLAND ───────────────────────────────────────────────────────────────────
-jos-buttler-1,Jos Buttler,R,R,none,True,manual,True
-alex-hales-1,Alex Hales,R,R,none,False,manual,True
-dawid-malan-1,Dawid Malan,L,R,none,False,manual,True
-ben-stokes-1,Ben Stokes,L,R,pace,False,manual,True
-liam-livingstone-1,Liam Livingstone,R,R,leg,False,manual,True
-moeen-ali-1,Moeen Ali,R,L,off,False,manual,True
-sam-curran-1,Sam Curran,L,L,pace,False,manual,True
-mark-wood-1,Mark Wood,R,R,pace,False,manual,True
-adil-rashid-1,Adil Rashid,R,R,leg,False,manual,True
-jofra-archer-1,Jofra Archer,R,R,pace,False,manual,True
-chris-jordan-1,Chris Jordan,R,R,pace,False,manual,True
-phil-salt-1,Phil Salt,R,R,none,True,manual,True
-harry-brook-1,Harry Brook,R,R,none,False,manual,True
-will-jacks-1,Will Jacks,R,R,off,False,manual,True
-reece-topley-1,Reece Topley,L,L,pace,False,manual,True
+JC Buttler,Jos Buttler,R,R,none,True,manual,True
+AD Hales,Alex Hales,R,R,none,False,manual,True
+DJ Malan,Dawid Malan,L,R,none,False,manual,True
+BA Stokes,Ben Stokes,L,R,pace,False,manual,True
+LS Livingstone,Liam Livingstone,R,R,leg,False,manual,True
+MM Ali,Moeen Ali,R,L,off,False,manual,True
+SM Curran,Sam Curran,L,L,pace,False,manual,True
+MA Wood,Mark Wood,R,R,pace,False,manual,True
+AU Rashid,Adil Rashid,R,R,leg,False,manual,True
+JC Archer,Jofra Archer,R,R,pace,False,manual,True
+CJ Jordan,Chris Jordan,R,R,pace,False,manual,True
+PD Salt,Phil Salt,R,R,none,True,manual,True
+HC Brook,Harry Brook,R,R,none,False,manual,True
+WG Jacks,Will Jacks,R,R,off,False,manual,True
+RJW Topley,Reece Topley,L,L,pace,False,manual,True
 # ── NEW ZEALAND ───────────────────────────────────────────────────────────────
-kane-williamson-1,Kane Williamson,R,R,off,False,manual,True
-martin-guptill-1,Martin Guptill,R,R,none,False,manual,True
-devon-conway-1,Devon Conway,L,R,none,True,manual,True
-daryl-mitchell-1,Daryl Mitchell,R,R,none,False,manual,True
-mark-chapman-1,Mark Chapman,L,R,none,False,manual,True
-finn-allen-1,Finn Allen,R,R,none,False,manual,True
-james-neesham-1,James Neesham,L,R,pace,False,manual,True
-mitchell-santner-1,Mitchell Santner,L,L,left_orth,False,manual,True
-ish-sodhi-1,Ish Sodhi,R,R,leg,False,manual,True
-trent-boult-1,Trent Boult,L,L,pace,False,manual,True
-tim-southee-1,Tim Southee,R,R,pace,False,manual,True
-lockie-ferguson-1,Lockie Ferguson,R,R,pace,False,manual,True
+KS Williamson,Kane Williamson,R,R,off,False,manual,True
+MJ Guptill,Martin Guptill,R,R,none,False,manual,True
+DP Conway,Devon Conway,L,R,none,True,manual,True
+DJ Mitchell,Daryl Mitchell,R,R,none,False,manual,True
+ME Chapman,Mark Chapman,L,R,none,False,manual,True
+FH Allen,Finn Allen,R,R,none,False,manual,True
+JDS Neesham,James Neesham,L,R,pace,False,manual,True
+MJ Santner,Mitchell Santner,L,L,left_orth,False,manual,True
+IS Sodhi,Ish Sodhi,R,R,leg,False,manual,True
+TA Boult,Trent Boult,L,L,pace,False,manual,True
+TG Southee,Tim Southee,R,R,pace,False,manual,True
+LH Ferguson,Lockie Ferguson,R,R,pace,False,manual,True
 # ── SOUTH AFRICA ──────────────────────────────────────────────────────────────
-quinton-de-kock-1,Quinton de Kock,L,R,none,True,manual,True
-temba-bavuma-1,Temba Bavuma,R,R,none,False,manual,True
-rilee-rossouw-1,Rilee Rossouw,L,R,none,False,manual,True
-david-miller-1,David Miller,L,R,none,False,manual,True
-heinrich-klaasen-1,Heinrich Klaasen,R,R,none,True,manual,True
-aiden-markram-1,Aiden Markram,R,R,off,False,manual,True
-marco-jansen-1,Marco Jansen,L,L,pace,False,manual,True
-kagiso-rabada-1,Kagiso Rabada,R,R,pace,False,manual,True
-anrich-nortje-1,Anrich Nortje,R,R,pace,False,manual,True
-lungi-ngidi-1,Lungi Ngidi,R,R,pace,False,manual,True
-keshav-maharaj-1,Keshav Maharaj,L,L,left_orth,False,manual,True
-tabraiz-shamsi-1,Tabraiz Shamsi,L,L,left_wrist,False,manual,True
+Q de Kock,Quinton de Kock,L,R,none,True,manual,True
+T Bavuma,Temba Bavuma,R,R,none,False,manual,True
+RR Rossouw,Rilee Rossouw,L,R,none,False,manual,True
+DA Miller,David Miller,L,R,none,False,manual,True
+H Klaasen,Heinrich Klaasen,R,R,none,True,manual,True
+AK Markram,Aiden Markram,R,R,off,False,manual,True
+M Jansen,Marco Jansen,L,L,pace,False,manual,True
+K Rabada,Kagiso Rabada,R,R,pace,False,manual,True
+A Nortje,Anrich Nortje,R,R,pace,False,manual,True
+L Ngidi,Lungi Ngidi,R,R,pace,False,manual,True
+KA Maharaj,Keshav Maharaj,L,L,left_orth,False,manual,True
+T Shamsi,Tabraiz Shamsi,L,L,left_wrist,False,manual,True
+F du Plessis,Faf du Plessis,R,R,none,False,manual,True
 # ── WEST INDIES ───────────────────────────────────────────────────────────────
-kieron-pollard-1,Kieron Pollard,R,R,pace,False,manual,True
-nicholas-pooran-1,Nicholas Pooran,L,R,none,True,manual,True
-andre-russell-1,Andre Russell,R,R,pace,False,manual,True
-shimron-hetmyer-1,Shimron Hetmyer,L,R,none,False,manual,True
-chris-gayle-1,Chris Gayle,L,R,off,False,manual,True
-evin-lewis-1,Evin Lewis,L,R,none,False,manual,True
-lendl-simmons-1,Lendl Simmons,R,R,none,False,manual,True
-jason-holder-1,Jason Holder,R,R,pace,False,manual,True
-alzarri-joseph-1,Alzarri Joseph,R,R,pace,False,manual,True
-akeal-hosein-1,Akeal Hosein,L,L,left_orth,False,manual,True
-hayden-walsh-1,Hayden Walsh,R,R,leg,False,manual,True
+KA Pollard,Kieron Pollard,R,R,pace,False,manual,True
+N Pooran,Nicholas Pooran,L,R,none,True,manual,True
+AD Russell,Andre Russell,R,R,pace,False,manual,True
+SO Hetmyer,Shimron Hetmyer,L,R,none,False,manual,True
+CH Gayle,Chris Gayle,L,R,off,False,manual,True
+E Lewis,Evin Lewis,L,R,none,False,manual,True
+LMP Simmons,Lendl Simmons,R,R,none,False,manual,True
+JO Holder,Jason Holder,R,R,pace,False,manual,True
+AS Joseph,Alzarri Joseph,R,R,pace,False,manual,True
+AJ Hosein,Akeal Hosein,L,L,left_orth,False,manual,True
+HA Walsh,Hayden Walsh,R,R,leg,False,manual,True
+DJ Bravo,Dwayne Bravo,R,R,pace,False,manual,True
 # ── SRI LANKA ─────────────────────────────────────────────────────────────────
-dasun-shanaka-1,Dasun Shanaka,R,R,pace,False,manual,True
-kusal-mendis-1,Kusal Mendis,R,R,none,True,manual,True
-pathum-nissanka-1,Pathum Nissanka,R,R,none,False,manual,True
-charith-asalanka-1,Charith Asalanka,L,R,off,False,manual,True
-wanindu-hasaranga-1,Wanindu Hasaranga,R,R,leg,False,manual,True
-dushmantha-chameera-1,Dushmantha Chameera,R,R,pace,False,manual,True
-maheesh-theekshana-1,Maheesh Theekshana,R,R,off,False,manual,True
-matheesha-pathirana-1,Matheesha Pathirana,R,R,pace,False,manual,True
+MD Shanaka,Dasun Shanaka,R,R,pace,False,manual,True
+BKG Mendis,Kusal Mendis,R,R,none,True,manual,True
+MD Gunathilaka,Danushka Gunathilaka,L,R,none,False,manual,True
+KIC Asalanka,Charith Asalanka,L,R,off,False,manual,True
+AS Hasaranga,Wanindu Hasaranga,R,R,leg,False,manual,True
+PVD Chameera,Dushmantha Chameera,R,R,pace,False,manual,True
+M Theekshana,Maheesh Theekshana,R,R,off,False,manual,True
+DN Pathirana,Matheesha Pathirana,R,R,pace,False,manual,True
+PBB Rajapaksa,Pathum Nissanka,R,R,none,False,manual,True
 # ── AFGHANISTAN ───────────────────────────────────────────────────────────────
-rashid-khan-1,Rashid Khan,R,R,leg,False,manual,True
-mohammad-nabi-1,Mohammad Nabi,R,R,off,False,manual,True
-mujeeb-ur-rahman-1,Mujeeb Ur Rahman,R,R,off,False,manual,True
-hazratullah-zazai-1,Hazratullah Zazai,R,R,none,False,manual,True
-rahmanullah-gurbaz-1,Rahmanullah Gurbaz,R,R,none,True,manual,True
-ibrahim-zadran-1,Ibrahim Zadran,R,R,none,False,manual,True
-azmatullah-omarzai-1,Azmatullah Omarzai,R,R,pace,False,manual,True
-naveen-ul-haq-1,Naveen-ul-Haq,R,R,pace,False,manual,True
+Rashid Khan,Rashid Khan,R,R,leg,False,manual,True
+Mohammad Nabi,Mohammad Nabi,R,R,off,False,manual,True
+Mujeeb Ur Rahman,Mujeeb Ur Rahman,R,R,off,False,manual,True
+Rahmanullah Gurbaz,Rahmanullah Gurbaz,R,R,none,True,manual,True
+Ibrahim Zadran,Ibrahim Zadran,R,R,none,False,manual,True
+Azmatullah Omarzai,Azmatullah Omarzai,R,R,pace,False,manual,True
+Naveen-ul-Haq,Naveen-ul-Haq,R,R,pace,False,manual,True
+Hazratullah Zazai,Hazratullah Zazai,R,R,none,False,manual,True
 # ── BANGLADESH ────────────────────────────────────────────────────────────────
-shakib-al-hasan-1,Shakib Al Hasan,L,L,left_orth,False,manual,True
-mushfiqur-rahim-1,Mushfiqur Rahim,R,R,none,True,manual,True
-mahmudullah-1,Mahmudullah,R,R,off,False,manual,True
-litton-das-1,Litton Das,R,R,none,True,manual,True
-soumya-sarkar-1,Soumya Sarkar,L,L,pace,False,manual,True
-mustafizur-rahman-1,Mustafizur Rahman,L,L,pace,False,manual,True
-taskin-ahmed-1,Taskin Ahmed,R,R,pace,False,manual,True
-mehidy-hasan-miraz-1,Mehidy Hasan Miraz,R,R,off,False,manual,True
+Shakib Al Hasan,Shakib Al Hasan,L,L,left_orth,False,manual,True
+Mushfiqur Rahim,Mushfiqur Rahim,R,R,none,True,manual,True
+Mahmudullah,Mahmudullah,R,R,off,False,manual,True
+Soumya Sarkar,Soumya Sarkar,L,L,pace,False,manual,True
+Mustafizur Rahman,Mustafizur Rahman,L,L,pace,False,manual,True
+Taskin Ahmed,Taskin Ahmed,R,R,pace,False,manual,True
+Mehedi Hasan Miraz,Mehidy Hasan Miraz,R,R,off,False,manual,True
+Litton Das,Litton Das,R,R,none,True,manual,True
+# ── HIGH-VOLUME OTHERS (from coverage report top 30) ─────────────────────────
+SP Narine,Sunil Narine,L,R,off,False,manual,True
+SR Watson,Shane Watson,R,R,pace,False,manual,True
+Sikandar Raza,Sikandar Raza,R,R,off,False,manual,True
+Shahid Afridi,Shahid Afridi,R,R,leg,False,manual,True
+B Kumar,Bhuvneshwar Kumar,R,R,pace,False,manual,True
+R Ashwin,Ravichandran Ashwin,R,R,off,False,manual,True
+# ── HIGH-VOLUME BATCH 2 (IPL/BBL/CPL legends + current regulars) ─────────────
+A Zampa,Adam Zampa,R,R,leg,False,manual,True
+NLTC Perera,Thisara Perera,R,R,pace,False,manual,True
+SK Raina,Suresh Raina,L,R,off,False,manual,True
+C Munro,Colin Munro,L,R,none,False,manual,True
+Imran Tahir,Imran Tahir,R,R,leg,False,manual,True
+ADS Fletcher,Andre Fletcher,R,R,none,False,manual,True
+PWH de Silva,Dasun de Silva,L,R,off,False,manual,True
+CJ Green,Cameron Green,R,R,pace,False,manual,True
+JH Kallis,Jacques Kallis,R,R,pace,False,manual,True
+MC Henriques,Moises Henriques,R,R,pace,False,manual,True
+DR Smith,Dwayne Smith,R,R,pace,False,manual,True
+Sohail Tanvir,Sohail Tanvir,R,L,pace,False,manual,True
+BB McCullum,Brendon McCullum,R,R,none,True,manual,True
+SL Malinga,Lasith Malinga,R,R,pace,False,manual,True
+DT Christian,Dan Christian,R,R,pace,False,manual,True
+MS Dhoni,MS Dhoni,R,R,none,True,manual,True
+AB de Villiers,AB de Villiers,R,R,none,True,manual,True
+SA Yadav,Suryakumar Yadav,R,R,none,False,manual,True
+R Shepherd,Romario Shepherd,R,R,pace,False,manual,True
+D Wiese,David Wiese,R,R,pace,False,manual,True
+Tamim Iqbal,Tamim Iqbal,L,R,none,False,manual,True
+HK Matthews,Kyle Mayers,R,R,pace,False,manual,True
+J Charles,Johnson Charles,R,R,none,False,manual,True
+Faheem Ashraf,Faheem Ashraf,R,R,pace,False,manual,True
+JP Duminy,JP Duminy,L,R,off,False,manual,True
+R Powell,Rovman Powell,R,R,none,False,manual,True
+AD Mathews,Angelo Mathews,R,R,pace,False,manual,True
+CR Brathwaite,Carlos Brathwaite,R,R,pace,False,manual,True
+CA Lynn,Chris Lynn,R,R,none,False,manual,True
+Wahab Riaz,Wahab Riaz,L,L,pace,False,manual,True
+KH Pandya,Krunal Pandya,L,L,left_orth,False,manual,True
+SR Taylor,Ross Taylor,R,R,none,False,manual,True
+AM Rahane,Ajinkya Rahane,R,R,none,False,manual,True
+Hasan Ali,Hasan Ali,R,R,pace,False,manual,True
+AJ Tye,Andrew Tye,R,R,pace,False,manual,True
+MW Short,Marcus Short,R,R,off,False,manual,True
+KC Sangakkara,Kumar Sangakkara,L,R,none,True,manual,True
+DJG Sammy,Darren Sammy,R,R,pace,False,manual,True
+MN Samuels,Marlon Samuels,R,R,off,False,manual,True
+RL Chase,Roston Chase,R,R,off,False,manual,True
+SS Iyer,Shreyas Iyer,R,R,none,False,manual,True
+KR Mayers,Kyle Mayers,R,R,pace,False,manual,True
+DR Sams,Daniel Sams,L,L,pace,False,manual,True
+Yuvraj Singh,Yuvraj Singh,L,R,off,False,manual,True
+G Gambhir,Gautam Gambhir,L,R,none,False,manual,True
+Mohammad Nawaz,Mohammad Nawaz,R,L,left_orth,False,manual,True
+KD Karthik,Dinesh Karthik,R,R,none,True,manual,True
+TH David,Tim David,R,R,none,False,manual,True
+Liton Das,Liton Das,R,R,none,True,manual,True
+RV Uthappa,Robin Uthappa,R,R,none,True,manual,True
+SD Hope,Shai Hope,R,R,none,True,manual,True
+S Lamichhane,Sandeep Lamichhane,R,R,leg,False,manual,True
+KW Richardson,Kyle Richardson,L,L,pace,False,manual,True
+AC Agar,Ashton Agar,L,L,left_orth,False,manual,True
+MK Pandey,Manish Pandey,R,R,none,False,manual,True
+YK Pathan,Yusuf Pathan,R,R,off,False,manual,True
+DW Steyn,Dale Steyn,R,R,pace,False,manual,True
+GD Phillips,Glenn Phillips,R,R,off,True,manual,True
+Fawad Ahmed,Fawad Ahmed,R,R,leg,False,manual,True
+Mashrafe Mortaza,Mashrafe Mortaza,R,R,pace,False,manual,True
+Ishan Kishan,Ishan Kishan,L,R,none,True,manual,True
+TM Dilshan,Tillakaratne Dilshan,R,R,off,False,manual,True
+JJ Roy,Jason Roy,R,R,none,False,manual,True
+PR Stirling,Paul Stirling,R,R,off,False,manual,True
+EJG Morgan,Eoin Morgan,L,R,none,False,manual,True
+Harbhajan Singh,Harbhajan Singh,R,R,off,False,manual,True
+PP Chawla,Piyush Chawla,R,R,leg,False,manual,True
