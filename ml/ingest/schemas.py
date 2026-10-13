@@ -1,4 +1,4 @@
-"""
+﻿"""
 Pandera schemas for every parsed table.
 
 Each schema is the single source of truth for column names, types and
@@ -7,11 +7,12 @@ constraints. Parse functions validate against these before writing Parquet.
 
 from __future__ import annotations
 
-import pandera as pa
+import pandera.pandas as pa
+from pandera.pandas import DataFrameModel
 from pandera.typing import Series
 
 
-# ── matches ──────────────────────────────────────────────────────────────────
+# â”€â”€ matches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class MatchSchema(pa.DataFrameModel):
     match_id: Series[str] = pa.Field(unique=True, nullable=False)
@@ -38,7 +39,7 @@ class MatchSchema(pa.DataFrameModel):
         strict = "filter"
 
 
-# ── innings ───────────────────────────────────────────────────────────────────
+# â”€â”€ innings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class InningsSchema(pa.DataFrameModel):
     match_id: Series[str] = pa.Field(nullable=False)
@@ -56,7 +57,7 @@ class InningsSchema(pa.DataFrameModel):
         strict = "filter"
 
 
-# ── balls ─────────────────────────────────────────────────────────────────────
+# â”€â”€ balls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 OUTCOME_CLASSES = ["dot", "1", "2", "3", "4", "6", "wicket", "wide", "noball"]
 
@@ -103,7 +104,7 @@ class BallSchema(pa.DataFrameModel):
         strict = "filter"
 
 
-# ── lineups ───────────────────────────────────────────────────────────────────
+# â”€â”€ lineups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class LineupSchema(pa.DataFrameModel):
     match_id: Series[str] = pa.Field(nullable=False)
@@ -118,7 +119,7 @@ class LineupSchema(pa.DataFrameModel):
         strict = "filter"
 
 
-# ── player_meta ───────────────────────────────────────────────────────────────
+# â”€â”€ player_meta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class PlayerMetaSchema(pa.DataFrameModel):
     player_id: Series[str] = pa.Field(unique=True, nullable=False)
@@ -138,7 +139,7 @@ class PlayerMetaSchema(pa.DataFrameModel):
         strict = "filter"
 
 
-# ── venues ────────────────────────────────────────────────────────────────────
+# â”€â”€ venues â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class VenueSchema(pa.DataFrameModel):
     venue_id: Series[str] = pa.Field(unique=True, nullable=False)
@@ -149,3 +150,5 @@ class VenueSchema(pa.DataFrameModel):
     class Config:
         coerce = True
         strict = "filter"
+
+

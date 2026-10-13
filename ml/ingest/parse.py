@@ -1,4 +1,4 @@
-"""
+﻿"""
 Parse Cricsheet JSON files → ball, innings, match, lineup Parquet tables.
 
 Usage:
@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import pandera as pa
 
 from ml.ingest.normalize import competition_to_league, encode_outcome, venue_to_id
 from ml.ingest.schemas import (
@@ -322,3 +321,4 @@ if __name__ == "__main__":
     formats = [args.format] if args.format else list(FORMAT_DIRS.keys())
     for fmt in formats:
         parse_format(fmt)
+

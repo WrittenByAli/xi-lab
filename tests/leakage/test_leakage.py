@@ -1,4 +1,4 @@
-"""
+﻿"""
 Leakage tests — wired into CI and must always pass.
 
 Three tests:
@@ -180,3 +180,4 @@ class TestSnapshotOrder:
             f"Snapshot order violation: {len(violations)} matches have "
             f"snapshot_date > match_date:\n{violations.head()}"
         )
+
