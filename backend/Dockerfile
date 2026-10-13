@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -e "." && \
 COPY ml/ ./ml/
 COPY backend/ ./backend/
 COPY data/reference/ ./data/reference/
+COPY params.yaml .
 
 ENV PYTHONPATH=/app
 ENV MODEL_DIR=/app/models
