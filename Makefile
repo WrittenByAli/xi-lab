@@ -1,4 +1,4 @@
-.PHONY: all smoke test lint format install dvc-pull download parse features train simulate evaluate serve clean
+.PHONY: all smoke test lint format install dvc-pull download parse features train train-ability train-ball train-policies simulate-validate backtest serve serve-frontend serve-docker clean
 
 # ── Reproduce the full pipeline ──────────────────────────────────────────────
 all:
@@ -50,23 +50,31 @@ features:
 	python ml/features/snapshots.py
 
 train-ability:
-	python ml/models/ability/train.py
+	python -m ml.models.ability.train --format t20
+	python -m ml.models.ability.train --format odi
 
 train-ball:
-	python ml/models/ball/train.py
+	python -m ml.models.ball.train --format t20
+	python -m ml.models.ball.train --format odi
 
 train-policies:
-	python ml/models/policies/train.py
+	python -m ml.models.policies.train
+
+train: train-ability train-ball train-policies
 
 simulate-validate:
 	python ml/simulate/validate.py
 
 backtest:
-	python ml/evaluate/backtest.py
+	python -m ml.evaluate.backtest --format t20
+	python -m ml.evaluate.backtest --format odi
 
 # ── Serving ───────────────────────────────────────────────────────────────────
 serve:
 	uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+
+serve-frontend:
+	cd frontend && npx vite --port 3000
 
 serve-docker:
 	docker compose up
