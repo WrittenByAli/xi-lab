@@ -1,0 +1,116 @@
+stages:
+  download:
+    cmd: python ml/ingest/download.py --incremental
+    deps:
+      - ml/ingest/download.py
+    outs:
+      - data/raw/cricsheet
+
+  parse_t20:
+    cmd: python ml/ingest/parse.py --format t20
+    deps:
+      - ml/ingest/parse.py
+      - ml/ingest/schemas.py
+      - ml/ingest/normalize.py
+      - data/raw/cricsheet/t20s
+      - data/reference/venue_map.csv
+      - data/reference/league_map.csv
+    outs:
+      - data/interim/t20
+
+  parse_odi:
+    cmd: python ml/ingest/parse.py --format odi
+    deps:
+      - ml/ingest/parse.py
+      - ml/ingest/schemas.py
+      - ml/ingest/normalize.py
+      - data/raw/cricsheet/odis
+      - data/reference/venue_map.csv
+      - data/reference/league_map.csv
+    outs:
+      - data/interim/odi
+
+  parse_test:
+    cmd: python ml/ingest/parse.py --format test
+    deps:
+      - ml/ingest/parse.py
+      - ml/ingest/schemas.py
+      - ml/ingest/normalize.py
+      - data/raw/cricsheet/tests
+      - data/reference/venue_map.csv
+      - data/reference/league_map.csv
+    outs:
+      - data/interim/test
+
+  features:
+    cmd: python ml/features/snapshots.py
+    deps:
+      - ml/features/snapshots.py
+      - data/interim/t20
+      - data/interim/odi
+      - data/reference/player_meta.csv
+      - params.yaml
+    params:
+      - splits
+      - ability
+    outs:
+      - data/processed/snapshots
+
+  train_ability:
+    cmd: python ml/models/ability/train.py
+    deps:
+      - ml/models/ability/train.py
+      - data/processed/snapshots
+      - data/reference/player_meta.csv
+      - params.yaml
+    params:
+      - ability
+      - splits
+    outs:
+      - data/processed/models/ability
+    metrics:
+      - data/processed/metrics/ability.json
+
+  train_ball:
+    cmd: python ml/models/ball/train.py
+    deps:
+      - ml/models/ball/train.py
+      - data/processed/snapshots
+      - data/interim/t20
+      - params.yaml
+    params:
+      - ball_model
+      - splits
+    outs:
+      - data/processed/models/ball
+    metrics:
+      - data/processed/metrics/ball.json
+
+  train_policies:
+    cmd: python ml/models/policies/train.py
+    deps:
+      - ml/models/policies/train.py
+      - data/processed/snapshots
+      - data/interim/t20
+      - params.yaml
+    params:
+      - splits
+    outs:
+      - data/processed/models/policies
+    metrics:
+      - data/processed/metrics/policies.json
+
+  backtest:
+    cmd: python ml/evaluate/backtest.py
+    deps:
+      - ml/evaluate/backtest.py
+      - data/processed/models/ball
+      - data/processed/models/ability
+      - data/processed/models/policies
+      - data/interim/t20
+      - params.yaml
+    params:
+      - splits
+      - simulator
+    metrics:
+      - data/processed/metrics/backtest.json

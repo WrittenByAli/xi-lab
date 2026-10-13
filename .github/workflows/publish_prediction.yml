@@ -1,0 +1,68 @@
+name: Publish match prediction
+
+on:
+  workflow_dispatch:
+    inputs:
+      team:
+        description: "Team code (e.g. PAK, IND, AUS)"
+        required: true
+      opponent:
+        description: "Opponent code"
+        required: true
+      venue:
+        description: "Venue canonical name"
+        required: true
+      format:
+        description: "Format: t20i | odi | test"
+        required: true
+        default: t20i
+      match_date:
+        description: "Match date YYYY-MM-DD"
+        required: true
+      squad:
+        description: "Comma-separated player IDs from squad announcement"
+        required: true
+
+jobs:
+  predict:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install deps
+        run: pip install -e ".[dev]"
+      - name: Pull models
+        run: dvc pull
+        env:
+          GDRIVE_CREDENTIALS_DATA: ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
+      - name: Run optimizer and write prediction JSON
+        run: |
+          python ml/optimize/publish.py \
+            --team "${{ github.event.inputs.team }}" \
+            --opponent "${{ github.event.inputs.opponent }}" \
+            --venue "${{ github.event.inputs.venue }}" \
+            --format "${{ github.event.inputs.format }}" \
+            --date "${{ github.event.inputs.match_date }}" \
+            --squad "${{ github.event.inputs.squad }}" \
+            --out live/predictions/${{ github.event.inputs.team }}_vs_${{ github.event.inputs.opponent }}_${{ github.event.inputs.match_date }}.json
+      - name: Commit and tag prediction
+        run: |
+          git config user.name "xi-lab-bot"
+          git config user.email "bot@xi-lab"
+          git add live/predictions/
+          git commit -m "prediction: ${{ github.event.inputs.team }} vs ${{ github.event.inputs.opponent }} ${{ github.event.inputs.match_date }}"
+          TAG="prediction/${{ github.event.inputs.team }}_vs_${{ github.event.inputs.opponent }}_${{ github.event.inputs.match_date }}"
+          git tag "$TAG"
+          git push origin HEAD --tags
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "prediction/${{ github.event.inputs.team }}_vs_${{ github.event.inputs.opponent }}_${{ github.event.inputs.match_date }}"
+          name: "${{ github.event.inputs.team }} vs ${{ github.event.inputs.opponent }} — ${{ github.event.inputs.match_date }}"
+          files: live/predictions/*.json
+          body: |
+            Pre-toss XI recommendation published before match.
+            Model hash included in prediction JSON.

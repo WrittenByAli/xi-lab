@@ -1,0 +1,39 @@
+name: Weekly retrain
+
+on:
+  schedule:
+    - cron: "0 2 * * 1"   # every Monday 02:00 UTC
+  workflow_dispatch:
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install deps
+        run: pip install -e ".[dev]"
+      - name: Pull DVC data
+        run: dvc pull
+        env:
+          GDRIVE_CREDENTIALS_DATA: ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
+      - name: Download latest Cricsheet data
+        run: python ml/ingest/download.py --incremental
+      - name: Reproduce pipeline
+        run: dvc repro
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      - name: Push updated data
+        run: dvc push
+        env:
+          GDRIVE_CREDENTIALS_DATA: ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
+      - name: Open PR with metric diffs
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "chore: weekly retrain $(date +%Y-%m-%d)"
+          body: "Automated weekly retrain. Review metric diffs in MLflow before merging."
+          branch: retrain/auto
+          commit-message: "chore: weekly retrain"

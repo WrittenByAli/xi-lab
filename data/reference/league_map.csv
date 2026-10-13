@@ -1,0 +1,18 @@
+competition,league_id,format,is_international
+T20 World Cup,t20i,t20,True
+ICC Men's T20 World Cup,t20i,t20,True
+Indian Premier League,ipl,t20,False
+Pakistan Super League,psl,t20,False
+Big Bash League,bbl,t20,False
+Caribbean Premier League,cpl,t20,False
+Vitality Blast,t20_blast,t20,False
+SA20,sa20,t20,False
+International League T20,ilt20,t20,False
+Bangladesh Premier League,bpl,t20,False
+Lanka Premier League,lpl,t20,False
+Major League Cricket,mlc,t20,False
+Super Smash,super_smash,t20,False
+ICC Cricket World Cup,odii,odi,True
+One-Day International,odii,odi,True
+Test match,test_intl,test,True
+Test,test_intl,test,True

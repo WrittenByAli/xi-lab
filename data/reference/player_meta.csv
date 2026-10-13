@@ -1,0 +1,18 @@
+player_id,name,bat_hand,bowl_arm,bowl_type,is_keeper,source,verified
+# This file is curated by hand for the top ~1000 players by balls involved.
+# Run: python ml/ingest/coverage.py to see which players to add next.
+# Format: bat_hand in {R,L,unknown}, bowl_arm in {R,L,none,unknown},
+#         bowl_type in {pace,off,leg,left_orth,left_wrist,none,unknown}
+# Players not in this file fall back to style_clf inference or 'unknown'.
+# ──────────────────────────────────────────────────────────────────────────────
+# Pakistan
+"Babar Azam",R,R,none,False,manual,True
+"Mohammad Rizwan",R,R,none,True,manual,True
+"Shaheen Shah Afridi",L,L,pace,False,manual,True
+"Haris Rauf",R,R,pace,False,manual,True
+"Shadab Khan",R,R,leg,False,manual,True
+"Imad Wasim",L,L,left_orth,False,manual,True
+"Fakhar Zaman",L,R,none,False,manual,True
+"Saim Ayub",L,R,none,False,manual,True
+"Naseem Shah",R,R,pace,False,manual,True
+"Mohammad Amir",L,L,pace,False,manual,True

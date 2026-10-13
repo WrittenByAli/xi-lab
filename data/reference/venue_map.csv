@@ -1,0 +1,15 @@
+raw_name,venue_id,canonical_name,city,country
+"National Stadium, Karachi",pak_karachi_national,National Stadium,Karachi,Pakistan
+"Gaddafi Stadium, Lahore",pak_lahore_gaddafi,Gaddafi Stadium,Lahore,Pakistan
+"Rawalpindi Cricket Stadium",pak_rawalpindi,Rawalpindi Cricket Stadium,Rawalpindi,Pakistan
+"Multan Cricket Stadium",pak_multan,Multan Cricket Stadium,Multan,Pakistan
+"Eden Gardens",ind_kolkata_eden,Eden Gardens,Kolkata,India
+"Wankhede Stadium",ind_mumbai_wankhede,Wankhede Stadium,Mumbai,India
+"M Chinnaswamy Stadium",ind_bangalore_chinnaswamy,M Chinnaswamy Stadium,Bengaluru,India
+"Narendra Modi Stadium",ind_ahmedabad_narendra_modi,Narendra Modi Stadium,Ahmedabad,India
+"Melbourne Cricket Ground",aus_melbourne_mcg,Melbourne Cricket Ground,Melbourne,Australia
+"Sydney Cricket Ground",aus_sydney_scg,Sydney Cricket Ground,Sydney,Australia
+"Lords",eng_london_lords,Lord's Cricket Ground,London,England
+"The Oval",eng_london_oval,The Oval,London,England
+"Dubai International Cricket Stadium",uae_dubai_intl,Dubai International Cricket Stadium,Dubai,UAE
+"Sharjah Cricket Stadium",uae_sharjah,Sharjah Cricket Stadium,Sharjah,UAE
