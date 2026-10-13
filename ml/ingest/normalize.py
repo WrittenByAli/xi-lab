@@ -27,7 +27,7 @@ def _load_venue_map() -> dict[str, str]:
     if _venue_map is None:
         if VENUE_MAP_PATH.exists():
             df = pd.read_csv(VENUE_MAP_PATH)
-            _venue_map = dict(zip(df["raw_name"].str.strip(), df["venue_id"]))
+            _venue_map = dict(zip(df["raw_name"].str.strip(), df["venue_id"], strict=False))
         else:
             _venue_map = {}
     return _venue_map
@@ -93,6 +93,7 @@ def _infer_format(match_type: str) -> str:
 
 
 # ── Outcome class encoding ────────────────────────────────────────────────────
+
 
 def encode_outcome(
     runs_batter: int,

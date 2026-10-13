@@ -1,4 +1,4 @@
-﻿"""
+"""
 Pandera schemas for every parsed table.
 
 Each schema is the single source of truth for column names, types and
@@ -8,11 +8,10 @@ constraints. Parse functions validate against these before writing Parquet.
 from __future__ import annotations
 
 import pandera.pandas as pa
-from pandera.pandas import DataFrameModel
 from pandera.typing import Series
 
-
 # â”€â”€ matches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 class MatchSchema(pa.DataFrameModel):
     match_id: Series[str] = pa.Field(unique=True, nullable=False)
@@ -28,9 +27,7 @@ class MatchSchema(pa.DataFrameModel):
     toss_winner: Series[str] = pa.Field(nullable=True)
     toss_decision: Series[str] = pa.Field(isin=["bat", "field", None], nullable=True)
     winner: Series[str] = pa.Field(nullable=True)
-    result_type: Series[str] = pa.Field(
-        isin=["normal", "tie", "no_result", "dls"], nullable=False
-    )
+    result_type: Series[str] = pa.Field(isin=["normal", "tie", "no_result", "dls"], nullable=False)
     is_reduced: Series[bool] = pa.Field(nullable=False)
     has_super_over: Series[bool] = pa.Field(nullable=False)
 
@@ -40,6 +37,7 @@ class MatchSchema(pa.DataFrameModel):
 
 
 # â”€â”€ innings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 class InningsSchema(pa.DataFrameModel):
     match_id: Series[str] = pa.Field(nullable=False)
@@ -66,9 +64,9 @@ class BallSchema(pa.DataFrameModel):
     # Identity
     match_id: Series[str] = pa.Field(nullable=False)
     innings_no: Series[int] = pa.Field(ge=1, le=4)
-    over: Series[int] = pa.Field(ge=0, le=49)          # 0-indexed; 0-19 T20, 0-49 ODI
+    over: Series[int] = pa.Field(ge=0, le=49)  # 0-indexed; 0-19 T20, 0-49 ODI
     legal_ball_idx: Series[int] = pa.Field(ge=0, le=5)  # within over, legal deliveries
-    delivery_seq: Series[int] = pa.Field(ge=0)          # absolute sequence incl. extras
+    delivery_seq: Series[int] = pa.Field(ge=0)  # absolute sequence incl. extras
 
     # Players
     batter_id: Series[str] = pa.Field(nullable=False)
@@ -94,7 +92,9 @@ class BallSchema(pa.DataFrameModel):
     wkts_before: Series[int] = pa.Field(ge=0, le=9)
     legal_balls_before: Series[int] = pa.Field(ge=0)
     target: Series[int] = pa.Field(ge=0, nullable=True)  # None in 1st innings
-    rrr_before: Series[float] = pa.Field(nullable=True)  # can be negative when chasing team is ahead
+    rrr_before: Series[float] = pa.Field(
+        nullable=True
+    )  # can be negative when chasing team is ahead
 
     # Label
     outcome_class: Series[str] = pa.Field(isin=OUTCOME_CLASSES)
@@ -105,6 +105,7 @@ class BallSchema(pa.DataFrameModel):
 
 
 # â”€â”€ lineups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 class LineupSchema(pa.DataFrameModel):
     match_id: Series[str] = pa.Field(nullable=False)
@@ -120,6 +121,7 @@ class LineupSchema(pa.DataFrameModel):
 
 
 # â”€â”€ player_meta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 class PlayerMetaSchema(pa.DataFrameModel):
     player_id: Series[str] = pa.Field(unique=True, nullable=False)
@@ -141,6 +143,7 @@ class PlayerMetaSchema(pa.DataFrameModel):
 
 # â”€â”€ venues â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+
 class VenueSchema(pa.DataFrameModel):
     venue_id: Series[str] = pa.Field(unique=True, nullable=False)
     canonical_name: Series[str] = pa.Field(nullable=False)
@@ -150,5 +153,3 @@ class VenueSchema(pa.DataFrameModel):
     class Config:
         coerce = True
         strict = "filter"
-
-

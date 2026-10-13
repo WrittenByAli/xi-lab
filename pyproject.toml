@@ -53,6 +53,7 @@ include = ["ml*", "backend*"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+exclude = ["ml/notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "TID"]
@@ -71,6 +72,7 @@ exclude = ["ml/notebooks", "data", "frontend"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
+markers = ["smoke: end-to-end smoke tests on fixture data"]
 
 [tool.coverage.run]
 source = ["ml", "backend"]

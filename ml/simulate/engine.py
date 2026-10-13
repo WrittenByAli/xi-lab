@@ -15,10 +15,8 @@ Key design:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Sequence
 
 import numpy as np
-
 
 OUTCOME_CLASSES = ["dot", "1", "2", "3", "4", "6", "wicket", "wide", "noball"]
 OUTCOME_RUNS = np.array([0, 1, 2, 3, 4, 6, 0, 1, 1], dtype=np.int32)
@@ -29,6 +27,7 @@ OUTCOME_IS_LEGAL = np.array([1, 1, 1, 1, 1, 1, 1, 0, 0], dtype=np.int32)
 @dataclass
 class BattingCard:
     """One batter's ability profile for simulation."""
+
     player_id: str
     probs_by_phase: dict[str, np.ndarray]  # phase -> (9,) outcome probs
 
@@ -36,6 +35,7 @@ class BattingCard:
 @dataclass
 class BowlingCard:
     """One bowler's ability profile for simulation."""
+
     player_id: str
     probs_by_phase: dict[str, np.ndarray]
     max_overs: int = 4
@@ -44,6 +44,7 @@ class BowlingCard:
 @dataclass
 class MatchContext:
     """Context for a single innings simulation."""
+
     batting_order: list[BattingCard]
     bowling_attack: list[BowlingCard]
     total_overs: int = 20
@@ -55,14 +56,15 @@ class MatchContext:
 @dataclass
 class SimResult:
     """Result of simulating N innings."""
-    scores: np.ndarray         # (N,) final scores
-    wickets: np.ndarray        # (N,) final wickets
-    balls_faced: np.ndarray    # (N,) legal balls used
+
+    scores: np.ndarray  # (N,) final scores
+    wickets: np.ndarray  # (N,) final wickets
+    balls_faced: np.ndarray  # (N,) legal balls used
     chased: np.ndarray | None  # (N,) bool, None if 1st innings
 
 
 def _get_phase(over: int, phases: list[tuple[int, int]], phase_names: list[str]) -> str:
-    for (lo, hi), name in zip(phases, phase_names):
+    for (lo, hi), name in zip(phases, phase_names, strict=False):
         if lo <= over <= hi:
             return name
     return phase_names[-1]
@@ -122,10 +124,7 @@ def simulate_innings(
     legal_balls = np.zeros(n_sims, dtype=np.int32)
     active = np.ones(n_sims, dtype=bool)
 
-    if ctx.target is not None:
-        chased = np.zeros(n_sims, dtype=bool)
-    else:
-        chased = None
+    chased = np.zeros(n_sims, dtype=bool) if ctx.target is not None else None
 
     batter_idx = np.zeros(n_sims, dtype=np.int32)
     max_batters = len(ctx.batting_order)
@@ -159,8 +158,12 @@ def simulate_innings(
                 continue
 
             batter = ctx.batting_order[b_idx]
-            bat_probs = batter.probs_by_phase.get(phase_name, batter.probs_by_phase.get("middle", np.ones(9) / 9))
-            bowl_probs = bowler.probs_by_phase.get(phase_name, bowler.probs_by_phase.get("middle", np.ones(9) / 9))
+            bat_probs = batter.probs_by_phase.get(
+                phase_name, batter.probs_by_phase.get("middle", np.ones(9) / 9)
+            )
+            bowl_probs = bowler.probs_by_phase.get(
+                phase_name, bowler.probs_by_phase.get("middle", np.ones(9) / 9)
+            )
             combined = _combine_probs(bat_probs, bowl_probs)
 
             cumprobs = np.cumsum(combined)
@@ -180,7 +183,7 @@ def simulate_innings(
             if legal_balls[s_idx] >= max_legal_balls:
                 active[s_idx] = False
 
-            if ctx.target is not None and scores[s_idx] >= ctx.target:
+            if ctx.target is not None and chased is not None and scores[s_idx] >= ctx.target:
                 chased[s_idx] = True
                 active[s_idx] = False
 

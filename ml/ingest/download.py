@@ -42,23 +42,23 @@ FORMAT_DIRS = {
 # (every match ever) rather than per-season, because we need the full history.
 DOWNLOADS: list[tuple[str, str]] = [
     # ── International ──────────────────────────────────────────────────────
-    ("t20s",       "https://cricsheet.org/downloads/t20s_json.zip"),
-    ("odis",       "https://cricsheet.org/downloads/odis_json.zip"),
-    ("tests",      "https://cricsheet.org/downloads/tests_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/t20s_json.zip"),
+    ("odis", "https://cricsheet.org/downloads/odis_json.zip"),
+    ("tests", "https://cricsheet.org/downloads/tests_json.zip"),
     # ── T20 leagues ────────────────────────────────────────────────────────
-    ("t20s",       "https://cricsheet.org/downloads/ipl_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/psl_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/bbl_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/cpl_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/ntb_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/sat_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/ilt_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/bpl_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/lpl_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/mlc_json.zip"),
-    ("t20s",       "https://cricsheet.org/downloads/ssm_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/ipl_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/psl_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/bbl_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/cpl_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/ntb_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/sat_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/ilt_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/bpl_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/lpl_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/mlc_json.zip"),
+    ("t20s", "https://cricsheet.org/downloads/ssm_json.zip"),
     # ── List A ─────────────────────────────────────────────────────────────
-    ("listA",      "https://cricsheet.org/downloads/odis_json.zip"),   # reuse ODI
+    ("listA", "https://cricsheet.org/downloads/odis_json.zip"),  # reuse ODI
     # ── Player register ────────────────────────────────────────────────────
     # people.csv and names.csv are separate downloads
 ]
@@ -70,6 +70,7 @@ REGISTER_URLS = [
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _sha256(path: Path, chunk: int = 1 << 20) -> str:
     h = hashlib.sha256()
@@ -88,9 +89,12 @@ def _download(url: str, dest: Path, retries: int = 3) -> Path:
                 total = int(r.headers.get("content-length", 0))
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 tmp = dest.with_suffix(".tmp")
-                with tmp.open("wb") as f, tqdm(
-                    total=total, unit="B", unit_scale=True, desc=dest.name, leave=False
-                ) as bar:
+                with (
+                    tmp.open("wb") as f,
+                    tqdm(
+                        total=total, unit="B", unit_scale=True, desc=dest.name, leave=False
+                    ) as bar,
+                ):
                     for chunk in r.iter_content(chunk_size=1 << 16):
                         f.write(chunk)
                         bar.update(len(chunk))
@@ -99,7 +103,7 @@ def _download(url: str, dest: Path, retries: int = 3) -> Path:
         except Exception as exc:
             logger.warning("Attempt %d/%d failed for %s: %s", attempt, retries, url, exc)
             if attempt < retries:
-                time.sleep(2 ** attempt)
+                time.sleep(2**attempt)
     raise RuntimeError(f"Failed to download {url} after {retries} attempts")
 
 
@@ -122,6 +126,7 @@ def _extract_zip(zip_path: Path, out_dir: Path) -> int:
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+
 
 def download_all(incremental: bool = False) -> None:
     seen_urls: set[str] = set()

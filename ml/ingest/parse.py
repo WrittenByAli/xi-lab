@@ -1,4 +1,4 @@
-﻿"""
+"""
 Parse Cricsheet JSON files → ball, innings, match, lineup Parquet tables.
 
 Usage:
@@ -18,8 +18,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-import pandera.pandas as pa
 import pandas as pd
+import pandera.pandas as pa
 
 from ml.ingest.normalize import competition_to_league, encode_outcome, venue_to_id
 from ml.ingest.schemas import (
@@ -44,6 +44,7 @@ FORMAT_DIRS = {
 
 
 # ── Single-match parser ───────────────────────────────────────────────────────
+
 
 def parse_match(path: Path) -> dict[str, list[dict]]:
     """
@@ -96,9 +97,7 @@ def parse_match(path: Path) -> dict[str, list[dict]]:
         "winner": winner,
         "result_type": result_type,
         "is_reduced": bool(outcome.get("method") == "D/L"),
-        "has_super_over": any(
-            inn.get("super_over", False) for inn in deliveries_data
-        ),
+        "has_super_over": any(inn.get("super_over", False) for inn in deliveries_data),
     }
 
     innings_rows: list[dict] = []
@@ -118,7 +117,7 @@ def parse_match(path: Path) -> dict[str, list[dict]]:
         score = 0
         wickets = 0
         legal_balls = 0
-        batting_order: list[str] = []   # order of appearance
+        batting_order: list[str] = []  # order of appearance
         bowler_overs: dict[str, float] = {}
         is_keeper_set: set[str] = set()
 
@@ -155,42 +154,45 @@ def parse_match(path: Path) -> dict[str, list[dict]]:
                         is_keeper_set.add(fielder.get("name", ""))
 
                 rrr = None
-                if target_runs and legal_balls < (20 * 6 if league_info["format"] == "t20" else 50 * 6):
+                if target_runs and legal_balls < (
+                    20 * 6 if league_info["format"] == "t20" else 50 * 6
+                ):
                     balls_remaining = (
-                        20 * 6 - legal_balls if league_info["format"] == "t20"
+                        20 * 6 - legal_balls
+                        if league_info["format"] == "t20"
                         else 50 * 6 - legal_balls
                     )
                     runs_needed = target_runs - score
                     rrr = (runs_needed / balls_remaining * 6) if balls_remaining > 0 else None
 
-                outcome_class = encode_outcome(
-                    runs_batter, is_wide, is_noball, is_wicket
-                )
+                outcome_class = encode_outcome(runs_batter, is_wide, is_noball, is_wicket)
 
-                innings_ball_rows.append({
-                    "match_id": match_id,
-                    "innings_no": innings_idx,
-                    "over": over_no,
-                    "legal_ball_idx": legal_balls % 6,
-                    "delivery_seq": len(innings_ball_rows),
-                    "batter_id": batter_id,
-                    "non_striker_id": non_striker_id,
-                    "bowler_id": bowler_id,
-                    "runs_batter": runs_batter,
-                    "runs_extras": runs_extras,
-                    "extras_type": next(iter(extras.keys()), None) if extras else None,
-                    "is_wide": is_wide,
-                    "is_noball": is_noball,
-                    "is_legal": is_legal,
-                    "wicket_kind": wicket_kind,
-                    "player_out_id": player_out_id,
-                    "score_before": score,
-                    "wkts_before": wickets,
-                    "legal_balls_before": legal_balls,
-                    "target": target_runs,
-                    "rrr_before": rrr,
-                    "outcome_class": outcome_class,
-                })
+                innings_ball_rows.append(
+                    {
+                        "match_id": match_id,
+                        "innings_no": innings_idx,
+                        "over": over_no,
+                        "legal_ball_idx": legal_balls % 6,
+                        "delivery_seq": len(innings_ball_rows),
+                        "batter_id": batter_id,
+                        "non_striker_id": non_striker_id,
+                        "bowler_id": bowler_id,
+                        "runs_batter": runs_batter,
+                        "runs_extras": runs_extras,
+                        "extras_type": next(iter(extras.keys()), None) if extras else None,
+                        "is_wide": is_wide,
+                        "is_noball": is_noball,
+                        "is_legal": is_legal,
+                        "wicket_kind": wicket_kind,
+                        "player_out_id": player_out_id,
+                        "score_before": score,
+                        "wkts_before": wickets,
+                        "legal_balls_before": legal_balls,
+                        "target": target_runs,
+                        "rrr_before": rrr,
+                        "outcome_class": outcome_class,
+                    }
+                )
 
                 score += runs_batter + runs_extras
                 if is_legal:
@@ -209,48 +211,59 @@ def parse_match(path: Path) -> dict[str, list[dict]]:
                 f"parsed={score} cricsheet={cricsheet_score}"
             )
 
-        innings_rows.append({
-            "match_id": match_id,
-            "innings_no": innings_idx,
-            "batting_team": batting_team,
-            "bowling_team": bowling_team,
-            "target_runs": target_runs,
-            "is_super_over": is_super_over,
-            "total_runs": score,
-            "total_wickets": wickets,
-            "total_legal_balls": legal_balls,
-        })
+        innings_rows.append(
+            {
+                "match_id": match_id,
+                "innings_no": innings_idx,
+                "batting_team": batting_team,
+                "bowling_team": bowling_team,
+                "target_runs": target_runs,
+                "is_super_over": is_super_over,
+                "total_runs": score,
+                "total_wickets": wickets,
+                "total_legal_balls": legal_balls,
+            }
+        )
 
         ball_rows.extend(innings_ball_rows)
 
         # --- Lineup rows for this innings -------------------------------------
         for pos, pid in enumerate(batting_order, start=1):
-            lineup_rows.append({
-                "match_id": match_id,
-                "team": batting_team,
-                "player_id": pid,
-                "bat_position_actual": pos if pos <= 11 else None,
-                "overs_bowled": None,
-                "is_keeper_inferred": pid in is_keeper_set,
-            })
+            lineup_rows.append(
+                {
+                    "match_id": match_id,
+                    "team": batting_team,
+                    "player_id": pid,
+                    "bat_position_actual": pos if pos <= 11 else None,
+                    "overs_bowled": None,
+                    "is_keeper_inferred": pid in is_keeper_set,
+                }
+            )
         for pid, overs in bowler_overs.items():
             # Update or append bowling entry
             existing = next(
-                (r for r in lineup_rows if r["match_id"] == match_id
-                 and r["team"] == bowling_team and r["player_id"] == pid),
+                (
+                    r
+                    for r in lineup_rows
+                    if r["match_id"] == match_id
+                    and r["team"] == bowling_team
+                    and r["player_id"] == pid
+                ),
                 None,
             )
             if existing:
                 existing["overs_bowled"] = round(overs, 2)
             else:
-                lineup_rows.append({
-                    "match_id": match_id,
-                    "team": bowling_team,
-                    "player_id": pid,
-                    "bat_position_actual": None,
-                    "overs_bowled": round(overs, 2),
-                    "is_keeper_inferred": False,
-                })
+                lineup_rows.append(
+                    {
+                        "match_id": match_id,
+                        "team": bowling_team,
+                        "player_id": pid,
+                        "bat_position_actual": None,
+                        "overs_bowled": round(overs, 2),
+                        "is_keeper_inferred": False,
+                    }
+                )
 
     return {
         "match": [match_row],
@@ -261,6 +274,7 @@ def parse_match(path: Path) -> dict[str, list[dict]]:
 
 
 # ── Batch parser ──────────────────────────────────────────────────────────────
+
 
 def parse_format(fmt: str) -> None:
     src_dir = FORMAT_DIRS[fmt]
@@ -297,7 +311,9 @@ def parse_format(fmt: str) -> None:
         try:
             schema.validate(df, lazy=True)
         except pa.errors.SchemaErrors as exc:
-            logger.warning("Schema warnings in %s/%s: %d failures", fmt, name, len(exc.failure_cases))
+            logger.warning(
+                "Schema warnings in %s/%s: %d failures", fmt, name, len(exc.failure_cases)
+            )
         df.to_parquet(out_dir / f"{name}.parquet", index=False)
         logger.info("  Saved %s/%s: %d rows", fmt, name, len(df))
 
@@ -322,4 +338,3 @@ if __name__ == "__main__":
     formats = [args.format] if args.format else list(FORMAT_DIRS.keys())
     for fmt in formats:
         parse_format(fmt)
-

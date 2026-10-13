@@ -26,17 +26,17 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],    # tighten in production
+    allow_origins=["*"],  # tighten in production
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(recommend.router, prefix="/recommend", tags=["selection"])
-app.include_router(simulate.router,  prefix="/simulate",  tags=["simulation"])
-app.include_router(compare.router,   prefix="/compare",   tags=["simulation"])
-app.include_router(player.router,    prefix="/player",    tags=["players"])
-app.include_router(live.router,      prefix="/live",      tags=["live"])
-app.include_router(results.router,   prefix="/results",   tags=["evaluation"])
+app.include_router(simulate.router, prefix="/simulate", tags=["simulation"])
+app.include_router(compare.router, prefix="/compare", tags=["simulation"])
+app.include_router(player.router, prefix="/player", tags=["players"])
+app.include_router(live.router, prefix="/live", tags=["live"])
+app.include_router(results.router, prefix="/results", tags=["evaluation"])
 
 
 @app.get("/health", tags=["ops"])

@@ -7,7 +7,6 @@ Each fixture was verified by hand against a published scorecard.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pandas as pd
@@ -46,9 +45,7 @@ class TestParseMatch:
         df = pd.DataFrame(result["balls"])
         for (match_id, innings_no), grp in df.groupby(["match_id", "innings_no"]):
             n_wickets = (grp["outcome_class"] == "wicket").sum()
-            assert n_wickets <= 10, (
-                f"match={match_id} innings={innings_no}: {n_wickets} wickets"
-            )
+            assert n_wickets <= 10, f"match={match_id} innings={innings_no}: {n_wickets} wickets"
 
     def test_legal_balls_le_per_innings(self, path: Path):
         """T20: ≤ 126 legal balls (120 + 1 extra over for no-ball replays in old data).
@@ -60,9 +57,7 @@ class TestParseMatch:
 
         df = pd.DataFrame(result["balls"])
         innings_df = pd.DataFrame(result["innings"])
-        super_over_innings = set(
-            innings_df.loc[innings_df["is_super_over"], "innings_no"]
-        )
+        super_over_innings = set(innings_df.loc[innings_df["is_super_over"], "innings_no"])
 
         for (match_id, innings_no), grp in df.groupby(["match_id", "innings_no"]):
             if innings_no in super_over_innings:
@@ -106,5 +101,6 @@ class TestParseMatch:
 @pytest.mark.skipif(not fixture_paths(), reason="No fixture JSON files yet")
 class TestNoFixturesWarning:
     """Placeholder so CI doesn't fail with 'no tests collected'."""
+
     def test_fixtures_directory_exists(self):
         assert FIXTURES_JSON.exists() or not FIXTURES_JSON.exists()  # always passes

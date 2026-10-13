@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
@@ -66,12 +65,15 @@ def test_simulate_basic():
     squad = _make_squad(15)
     team1 = squad[:11]
     team2 = squad[:11]
-    r = client.post("/simulate", json={
-        "team1": team1,
-        "team2": team2,
-        "format": "t20",
-        "n_sims": 100,
-    })
+    r = client.post(
+        "/simulate",
+        json={
+            "team1": team1,
+            "team2": team2,
+            "format": "t20",
+            "n_sims": 100,
+        },
+    )
     assert r.status_code == 200
     data = r.json()
     assert abs(data["team1_win_prob"] + data["team2_win_prob"] + data["tie_prob"] - 1.0) < 0.01

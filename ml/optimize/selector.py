@@ -18,10 +18,8 @@ Racing search (successive halving):
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 import numpy as np
 
@@ -39,9 +37,10 @@ PARAMS = yaml.safe_load((ROOT / "params.yaml").read_text())
 @dataclass
 class PlayerOption:
     """A player available for selection."""
+
     player_id: str
     name: str
-    role: str           # pure_bat, bat_allrounder, bowl_allrounder, pure_bowl, keeper_bat
+    role: str  # pure_bat, bat_allrounder, bowl_allrounder, pure_bowl, keeper_bat
     bat_rating: float
     bowl_rating: float
     is_keeper: bool
@@ -53,11 +52,12 @@ class PlayerOption:
 @dataclass
 class SelectionResult:
     """Output of the selection optimizer."""
+
     xi: list[PlayerOption]
     win_prob: float
     batting_order: list[str]
     bowling_plan: dict[str, int]  # player_id -> overs
-    tie_set: list[list[str]]      # alternative XIs within CI
+    tie_set: list[list[str]]  # alternative XIs within CI
     swap_matrix: dict[str, dict[str, float]]  # in -> {out -> delta_wp}
 
 
@@ -75,7 +75,7 @@ def generate_candidate_xis(
     if pulp is None:
         return [_greedy_select(squad, max_overseas)]
 
-    candidates = []
+    candidates: list[list[PlayerOption]] = []
     rng = np.random.default_rng(42)
 
     for trial in range(n_candidates * 3):
@@ -94,18 +94,18 @@ def generate_candidate_xis(
 
         prob += pulp.lpSum(x[i] for i in range(len(squad))) == 11
 
-        prob += pulp.lpSum(
-            x[i] for i in range(len(squad)) if squad[i].is_keeper
-        ) >= 1
+        prob += pulp.lpSum(x[i] for i in range(len(squad)) if squad[i].is_keeper) >= 1
 
-        prob += pulp.lpSum(
-            x[i] for i in range(len(squad))
-            if squad[i].role in ("bowl_allrounder", "pure_bowl", "bat_allrounder")
-        ) >= 5
+        prob += (
+            pulp.lpSum(
+                x[i]
+                for i in range(len(squad))
+                if squad[i].role in ("bowl_allrounder", "pure_bowl", "bat_allrounder")
+            )
+            >= 5
+        )
 
-        prob += pulp.lpSum(
-            x[i] for i in range(len(squad)) if squad[i].is_overseas
-        ) <= max_overseas
+        prob += pulp.lpSum(x[i] for i in range(len(squad)) if squad[i].is_overseas) <= max_overseas
 
         prob.solve(pulp.PULP_CBC_CMD(msg=0))
 
@@ -173,20 +173,27 @@ def _greedy_select(
 
 def suggest_batting_order(xi: list[PlayerOption]) -> list[str]:
     """Suggest a batting order based on role and rating."""
-    keepers = [p for p in xi if p.is_keeper]
+    [p for p in xi if p.is_keeper]
     openers = sorted(
         [p for p in xi if p.role in ("pure_bat", "keeper_bat", "bat_allrounder")],
-        key=lambda p: p.bat_rating, reverse=True,
+        key=lambda p: p.bat_rating,
+        reverse=True,
     )[:2]
 
     middle = sorted(
-        [p for p in xi if p not in openers and p.role in ("pure_bat", "bat_allrounder", "keeper_bat")],
-        key=lambda p: p.bat_rating, reverse=True,
+        [
+            p
+            for p in xi
+            if p not in openers and p.role in ("pure_bat", "bat_allrounder", "keeper_bat")
+        ],
+        key=lambda p: p.bat_rating,
+        reverse=True,
     )
 
     lower = sorted(
         [p for p in xi if p not in openers and p not in middle],
-        key=lambda p: p.bat_rating, reverse=True,
+        key=lambda p: p.bat_rating,
+        reverse=True,
     )
 
     order = openers + middle + lower
@@ -253,7 +260,7 @@ def racing_search(
     sims = initial_sims
     scores = {}
 
-    for rnd in range(rounds):
+    for _rnd in range(rounds):
         if len(active) <= 2:
             break
 
@@ -292,7 +299,7 @@ def compute_swap_matrix(
 ) -> dict[str, dict[str, float]]:
     """For each bench player, compute delta WP if swapped in for each XI player."""
     base_wp = evaluate_fn(xi, n_sims)
-    matrix = {}
+    matrix: dict[str, dict[str, float]] = {}
 
     for bench_p in bench:
         matrix[bench_p.player_id] = {}
@@ -319,6 +326,7 @@ def select_xi(
     opt_params = PARAMS["optimizer"]
 
     if evaluate_fn is None:
+
         def evaluate_fn(xi, n_sims=1000):
             return sum(p.bat_rating + p.bowl_rating for p in xi) / 11
 
@@ -331,7 +339,7 @@ def select_xi(
     if len(candidates) == 1:
         best_xi = candidates[0]
         best_wp = evaluate_fn(best_xi, 1000)
-        tie_set = []
+        tie_set: list[list[str]] = []
     else:
         best_xi, best_wp, tie_set = racing_search(
             candidates,

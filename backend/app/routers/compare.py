@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
-
 import numpy as np
+from fastapi import APIRouter
 
 from backend.app.schemas.models import CompareRequest, CompareResponse
 from ml.simulate.engine import (

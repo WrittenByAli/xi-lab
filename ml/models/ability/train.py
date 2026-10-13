@@ -41,6 +41,7 @@ PARAMS = yaml.safe_load((ROOT / "params.yaml").read_text())
 # Role classification
 # ---------------------------------------------------------------------------
 
+
 def classify_role(
     bat_balls: float,
     bowl_balls: float,
@@ -179,6 +180,7 @@ def apply_shrinkage(df: pd.DataFrame, priors: dict, prior_n: float) -> pd.DataFr
 # Evaluation
 # ---------------------------------------------------------------------------
 
+
 def evaluate_on_validation(
     train_ratings: pd.DataFrame,
     val_snapshots: pd.DataFrame,
@@ -192,8 +194,7 @@ def evaluate_on_validation(
     """
     # Get the last rating per player from the training period
     last_train = (
-        train_ratings
-        .sort_values("snapshot_month")
+        train_ratings.sort_values("snapshot_month")
         .groupby(["player_id", "format"])
         .last()
         .reset_index()
@@ -201,8 +202,7 @@ def evaluate_on_validation(
 
     # Classify and apply shrinkage to val snapshots so we have "actual" values
     val_agg = (
-        val_snapshots
-        .sort_values("snapshot_month")
+        val_snapshots.sort_values("snapshot_month")
         .groupby(["player_id", "format"])
         .last()
         .reset_index()
@@ -210,30 +210,31 @@ def evaluate_on_validation(
 
     # Merge predicted (from train) with actual (from val)
     merged = last_train[["player_id", "format", "bat_rating", "bowl_rating"]].merge(
-        val_agg[["player_id", "format", "bat_sr_wtd", "bat_avg_wtd",
-                 "bowl_econ_wtd", "bowl_sr_wtd"]],
+        val_agg[
+            ["player_id", "format", "bat_sr_wtd", "bat_avg_wtd", "bowl_econ_wtd", "bowl_sr_wtd"]
+        ],
         on=["player_id", "format"],
         how="inner",
         suffixes=("_pred", "_actual"),
     )
 
-    metrics = {"n_players": len(merged)}
+    metrics: dict[str, object] = {"n_players": len(merged)}
 
     # Batting correlation: predicted bat_rating vs actual SR
     mask_bat = merged["bat_sr_wtd"].notna()
     if mask_bat.sum() > 5:
-        corr_bat_sr = float(merged.loc[mask_bat, "bat_rating"].corr(
-            merged.loc[mask_bat, "bat_sr_wtd"]
-        ))
+        corr_bat_sr = float(
+            merged.loc[mask_bat, "bat_rating"].corr(merged.loc[mask_bat, "bat_sr_wtd"])
+        )
         metrics["bat_rating_vs_sr_corr"] = round(corr_bat_sr, 4)
     else:
         metrics["bat_rating_vs_sr_corr"] = None
 
     mask_avg = merged["bat_avg_wtd"].notna()
     if mask_avg.sum() > 5:
-        corr_bat_avg = float(merged.loc[mask_avg, "bat_rating"].corr(
-            merged.loc[mask_avg, "bat_avg_wtd"]
-        ))
+        corr_bat_avg = float(
+            merged.loc[mask_avg, "bat_rating"].corr(merged.loc[mask_avg, "bat_avg_wtd"])
+        )
         metrics["bat_rating_vs_avg_corr"] = round(corr_bat_avg, 4)
     else:
         metrics["bat_rating_vs_avg_corr"] = None
@@ -241,18 +242,18 @@ def evaluate_on_validation(
     # Bowling correlation: predicted bowl_rating vs actual economy (inverted)
     mask_econ = merged["bowl_econ_wtd"].notna()
     if mask_econ.sum() > 5:
-        corr_bowl_econ = float(merged.loc[mask_econ, "bowl_rating"].corr(
-            -merged.loc[mask_econ, "bowl_econ_wtd"]
-        ))
+        corr_bowl_econ = float(
+            merged.loc[mask_econ, "bowl_rating"].corr(-merged.loc[mask_econ, "bowl_econ_wtd"])
+        )
         metrics["bowl_rating_vs_econ_corr"] = round(corr_bowl_econ, 4)
     else:
         metrics["bowl_rating_vs_econ_corr"] = None
 
     mask_bsr = merged["bowl_sr_wtd"].notna()
     if mask_bsr.sum() > 5:
-        corr_bowl_sr = float(merged.loc[mask_bsr, "bowl_rating"].corr(
-            -merged.loc[mask_bsr, "bowl_sr_wtd"]
-        ))
+        corr_bowl_sr = float(
+            merged.loc[mask_bsr, "bowl_rating"].corr(-merged.loc[mask_bsr, "bowl_sr_wtd"])
+        )
         metrics["bowl_rating_vs_sr_corr"] = round(corr_bowl_sr, 4)
     else:
         metrics["bowl_rating_vs_sr_corr"] = None
@@ -264,12 +265,15 @@ def evaluate_on_validation(
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Train the Empirical Bayes shrinkage ability model."
     )
     parser.add_argument(
-        "--format", choices=["t20", "odi", "test"], default="t20",
+        "--format",
+        choices=["t20", "odi", "test"],
+        default="t20",
         help="Cricket format to train on (default: t20).",
     )
     args = parser.parse_args()
@@ -292,8 +296,7 @@ def main() -> None:
     # ── Split ─────────────────────────────────────────────────────────────
     train_df = snapshots[snapshots["snapshot_month"] <= train_end].copy()
     val_df = snapshots[
-        (snapshots["snapshot_month"] >= val_start)
-        & (snapshots["snapshot_month"] <= val_end)
+        (snapshots["snapshot_month"] >= val_start) & (snapshots["snapshot_month"] <= val_end)
     ].copy()
 
     print(f"Train rows: {len(train_df):,}  |  Val rows: {len(val_df):,}")
@@ -318,8 +321,14 @@ def main() -> None:
 
     # ── Select output columns ─────────────────────────────────────────────
     out_cols = [
-        "player_id", "snapshot_month", "format", "role",
-        "bat_rating", "bat_uncertainty", "bowl_rating", "bowl_uncertainty",
+        "player_id",
+        "snapshot_month",
+        "format",
+        "role",
+        "bat_rating",
+        "bat_uncertainty",
+        "bowl_rating",
+        "bowl_uncertainty",
     ]
     ratings_out = train_ratings[out_cols].copy()
 
@@ -348,8 +357,8 @@ def main() -> None:
         print(f"Combined ratings: {len(merged):,} rows across {len(parts)} format(s)")
 
     priors_path = model_dir / "group_priors.json"
-    with open(priors_path, "w") as f:
-        json.dump(priors, f, indent=2)
+    with open(priors_path, "w") as fh:
+        json.dump(priors, fh, indent=2)
     print(f"Group priors written to {priors_path}")
 
     # ── Evaluate ──────────────────────────────────────────────────────────
@@ -363,8 +372,8 @@ def main() -> None:
     metrics_dir = ROOT / "data" / "processed" / "metrics"
     metrics_dir.mkdir(parents=True, exist_ok=True)
     metrics_path = metrics_dir / "ability.json"
-    with open(metrics_path, "w") as f:
-        json.dump(metrics, f, indent=2)
+    with open(metrics_path, "w") as fh:
+        json.dump(metrics, fh, indent=2)
     print(f"Metrics written to {metrics_path}")
     print(f"  bat_rating_vs_sr_corr:  {metrics.get('bat_rating_vs_sr_corr')}")
     print(f"  bat_rating_vs_avg_corr: {metrics.get('bat_rating_vs_avg_corr')}")

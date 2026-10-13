@@ -38,14 +38,13 @@ def _get_team_ratings(
     team: str,
     match_date: pd.Timestamp,
 ) -> pd.DataFrame:
-    team_players = lineups[
-        (lineups["match_id"] == match_id) & (lineups["team"] == team)
-    ]["player_id"].unique()
+    team_players = lineups[(lineups["match_id"] == match_id) & (lineups["team"] == team)][
+        "player_id"
+    ].unique()
 
     snapshot_month = match_date.replace(day=1)
     team_ratings = ratings[
-        (ratings["player_id"].isin(team_players))
-        & (ratings["snapshot_month"] <= snapshot_month)
+        (ratings["player_id"].isin(team_players)) & (ratings["snapshot_month"] <= snapshot_month)
     ]
 
     if team_ratings.empty:
@@ -65,9 +64,13 @@ def _compute_features(t1: pd.DataFrame, t2: pd.DataFrame) -> dict | None:
         bowl = df["bowl_rating"].dropna()
         return {
             "bat_mean": bat.mean() if len(bat) > 0 else 0,
-            "bat_top3": bat.nlargest(3).mean() if len(bat) >= 3 else (bat.mean() if len(bat) > 0 else 0),
+            "bat_top3": bat.nlargest(3).mean()
+            if len(bat) >= 3
+            else (bat.mean() if len(bat) > 0 else 0),
             "bowl_mean": bowl.mean() if len(bowl) > 0 else 0,
-            "bowl_top3": bowl.nsmallest(3).mean() if len(bowl) >= 3 else (bowl.mean() if len(bowl) > 0 else 0),
+            "bowl_top3": bowl.nsmallest(3).mean()
+            if len(bowl) >= 3
+            else (bowl.mean() if len(bowl) > 0 else 0),
             "n_players": len(df),
         }
 
@@ -111,29 +114,33 @@ def _build_dataset(
             continue
 
         actual = 1.0 if match["winner"] == match["team1"] else 0.0
-        rows.append({
-            "match_id": match["match_id"],
-            "date": str(match["date"].date()),
-            "team1": match["team1"],
-            "team2": match["team2"],
-            "actual": actual,
-            **feats,
-        })
+        rows.append(
+            {
+                "match_id": match["match_id"],
+                "date": str(match["date"].date()),
+                "team1": match["team1"],
+                "team2": match["team2"],
+                "actual": actual,
+                **feats,
+            }
+        )
 
     return pd.DataFrame(rows)
 
 
-def _fit_logistic(X: np.ndarray, y: np.ndarray, lr: float = 0.01, epochs: int = 500) -> tuple[np.ndarray, float]:
+def _fit_logistic(
+    x: np.ndarray, y: np.ndarray, lr: float = 0.01, epochs: int = 500
+) -> tuple[np.ndarray, float]:
     """Fit logistic regression with gradient descent (no sklearn dependency for this)."""
-    n_features = X.shape[1]
+    n_features = x.shape[1]
     w = np.zeros(n_features)
     b = 0.0
 
     for _ in range(epochs):
-        z = X @ w + b
+        z = x @ w + b
         p = 1 / (1 + np.exp(-np.clip(z, -30, 30)))
         error = p - y
-        grad_w = (X.T @ error) / len(y) + 0.001 * w
+        grad_w = (x.T @ error) / len(y) + 0.001 * w
         grad_b = error.mean()
         w -= lr * grad_w
         b -= lr * grad_b
@@ -141,8 +148,8 @@ def _fit_logistic(X: np.ndarray, y: np.ndarray, lr: float = 0.01, epochs: int = 
     return w, b
 
 
-def _predict_logistic(X: np.ndarray, w: np.ndarray, b: float) -> np.ndarray:
-    z = X @ w + b
+def _predict_logistic(x: np.ndarray, w: np.ndarray, b: float) -> np.ndarray:
+    z = x @ w + b
     return 1 / (1 + np.exp(-np.clip(z, -30, 30)))
 
 
@@ -171,52 +178,54 @@ def backtest(fmt: str = "t20") -> dict:
         return {"format": fmt, "test_matches": 0, "error": "insufficient_data"}
 
     feature_cols = ["bat_diff", "bat_top3_diff", "bowl_diff", "bowl_top3_diff"]
-    X_val = val_df[feature_cols].values.astype(float)
+    x_val = val_df[feature_cols].values.astype(float)
     y_val = val_df["actual"].values.astype(float)
-    X_test = test_df[feature_cols].values.astype(float)
+    x_test = test_df[feature_cols].values.astype(float)
     y_test = test_df["actual"].values.astype(float)
 
     # Z-score normalize using validation stats
-    mu = X_val.mean(axis=0)
-    sigma = X_val.std(axis=0)
+    mu = x_val.mean(axis=0)
+    sigma = x_val.std(axis=0)
     sigma[sigma < 1e-8] = 1.0
-    X_val_norm = (X_val - mu) / sigma
-    X_test_norm = (X_test - mu) / sigma
+    x_val_norm = (x_val - mu) / sigma
+    x_test_norm = (x_test - mu) / sigma
 
     print(f"[{fmt}] Fitting logistic model on {len(val_df)} validation matches...")
-    w, b = _fit_logistic(X_val_norm, y_val, lr=0.1, epochs=2000)
+    w, b = _fit_logistic(x_val_norm, y_val, lr=0.1, epochs=2000)
 
-    print(f"[{fmt}] Feature weights: {dict(zip(feature_cols, [round(float(x), 4) for x in w]))}")
+    print(
+        f"[{fmt}] Feature weights: {dict(zip(feature_cols, [round(float(x), 4) for x in w], strict=False))}"
+    )
     print(f"[{fmt}] Bias: {b:.4f}")
 
     # Evaluate on test
-    predicted = _predict_logistic(X_test_norm, w, b)
+    predicted = _predict_logistic(x_test_norm, w, b)
     predicted = np.clip(predicted, 0.01, 0.99)
     actual = y_test
 
     brier = float(np.mean((predicted - actual) ** 2))
-    log_loss = float(-np.mean(
-        actual * np.log(predicted) + (1 - actual) * np.log(1 - predicted)
-    ))
+    log_loss = float(-np.mean(actual * np.log(predicted) + (1 - actual) * np.log(1 - predicted)))
     accuracy = float(np.mean((predicted > 0.5) == (actual > 0.5)))
 
     # Calibration curve
     n_bins = 10
     bin_edges = np.linspace(0, 1, n_bins + 1)
     calibration = []
-    for lo, hi in zip(bin_edges[:-1], bin_edges[1:]):
+    for lo, hi in zip(bin_edges[:-1], bin_edges[1:], strict=False):
         mask = (predicted >= lo) & (predicted < hi)
         if mask.sum() > 0:
-            calibration.append({
-                "bin_center": round((lo + hi) / 2, 2),
-                "predicted_mean": round(float(predicted[mask].mean()), 4),
-                "actual_mean": round(float(actual[mask].mean()), 4),
-                "count": int(mask.sum()),
-            })
+            calibration.append(
+                {
+                    "bin_center": round((lo + hi) / 2, 2),
+                    "predicted_mean": round(float(predicted[mask].mean()), 4),
+                    "actual_mean": round(float(actual[mask].mean()), 4),
+                    "count": int(mask.sum()),
+                }
+            )
 
     # Kelly ROI
     kelly_returns = []
-    for p, a in zip(predicted, actual):
+    for p, a in zip(predicted, actual, strict=False):
         if p > 0.5:
             kelly_fraction = max(0, 2 * p - 1)
             payout = a * 2 - 1
@@ -234,7 +243,7 @@ def backtest(fmt: str = "t20") -> dict:
         "kelly_roi": round(roi, 6),
         "calibration": calibration,
         "baseline_brier": 0.25,
-        "feature_weights": dict(zip(feature_cols, [round(float(x), 4) for x in w])),
+        "feature_weights": dict(zip(feature_cols, [round(float(x), 4) for x in w], strict=False)),
         "bias": round(float(b), 4),
         "normalization": {"mean": mu.tolist(), "std": sigma.tolist()},
     }

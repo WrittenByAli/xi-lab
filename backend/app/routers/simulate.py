@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import numpy as np
 from fastapi import APIRouter
 
-import numpy as np
-
 from backend.app.schemas.models import (
+    ScoreDistribution,
     SimulateRequest,
     SimulateResponse,
 )
@@ -58,8 +58,16 @@ def simulate(req: SimulateRequest):
         t2_bat.append(bc)
         t2_bowl.append(blc)
 
-    bowlers1 = [b for b, p in zip(t1_bowl, req.team1) if p.role in ("pure_bowl", "bowl_allrounder", "bat_allrounder")][:5]
-    bowlers2 = [b for b, p in zip(t2_bowl, req.team2) if p.role in ("pure_bowl", "bowl_allrounder", "bat_allrounder")][:5]
+    bowlers1 = [
+        b
+        for b, p in zip(t1_bowl, req.team1, strict=False)
+        if p.role in ("pure_bowl", "bowl_allrounder", "bat_allrounder")
+    ][:5]
+    bowlers2 = [
+        b
+        for b, p in zip(t2_bowl, req.team2, strict=False)
+        if p.role in ("pure_bowl", "bowl_allrounder", "bat_allrounder")
+    ][:5]
     if len(bowlers1) < 5:
         bowlers1 = t1_bowl[:5]
     if len(bowlers2) < 5:
@@ -72,6 +80,6 @@ def simulate(req: SimulateRequest):
         team1_win_prob=round(result["team1_win_prob"], 4),
         team2_win_prob=round(result["team2_win_prob"], 4),
         tie_prob=round(result["tie_prob"], 4),
-        team1_scores=build_score_distribution(result["team1_scores"]),
-        team2_scores=build_score_distribution(result["team2_scores"]),
+        team1_scores=ScoreDistribution(**build_score_distribution(result["team1_scores"])),
+        team2_scores=ScoreDistribution(**build_score_distribution(result["team2_scores"])),
     )

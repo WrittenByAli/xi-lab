@@ -2,25 +2,21 @@
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 import pandas as pd
 import pytest
 
 from ml.models.ability.train import (
+    apply_shrinkage,
     classify_role,
     compute_group_priors,
     shrink,
-    apply_shrinkage,
-    BAT_METRICS,
-    BOWL_METRICS,
 )
-
 
 # ---------------------------------------------------------------------------
 # Role classification
 # ---------------------------------------------------------------------------
+
 
 class TestClassifyRole:
     def test_pure_bat(self):
@@ -59,7 +55,10 @@ class TestClassifyRole:
         assert classify_role(bat_balls=100, bowl_balls=float("nan"), is_keeper=False) == "pure_bat"
 
     def test_both_nan(self):
-        assert classify_role(bat_balls=float("nan"), bowl_balls=float("nan"), is_keeper=False) == "pure_bat"
+        assert (
+            classify_role(bat_balls=float("nan"), bowl_balls=float("nan"), is_keeper=False)
+            == "pure_bat"
+        )
 
     def test_keeper_overrides_pure_bat(self):
         # Even though bat_balls>=60 and bowl_balls<30, keeper takes priority
@@ -69,6 +68,7 @@ class TestClassifyRole:
 # ---------------------------------------------------------------------------
 # Shrinkage math
 # ---------------------------------------------------------------------------
+
 
 class TestShrink:
     def test_full_data(self):
@@ -111,17 +111,20 @@ class TestShrink:
 # Group priors
 # ---------------------------------------------------------------------------
 
+
 class TestComputeGroupPriors:
     @pytest.fixture()
     def sample_df(self):
-        return pd.DataFrame({
-            "role": ["pure_bat", "pure_bat", "pure_bat", "pure_bowl", "pure_bowl"],
-            "format": ["t20", "t20", "t20", "t20", "t20"],
-            "bat_sr_wtd": [130.0, 140.0, 150.0, 90.0, 100.0],
-            "bat_avg_wtd": [25.0, 30.0, 35.0, 12.0, 15.0],
-            "bowl_econ_wtd": [np.nan, np.nan, np.nan, 7.0, 8.0],
-            "bowl_sr_wtd": [np.nan, np.nan, np.nan, 18.0, 20.0],
-        })
+        return pd.DataFrame(
+            {
+                "role": ["pure_bat", "pure_bat", "pure_bat", "pure_bowl", "pure_bowl"],
+                "format": ["t20", "t20", "t20", "t20", "t20"],
+                "bat_sr_wtd": [130.0, 140.0, 150.0, 90.0, 100.0],
+                "bat_avg_wtd": [25.0, 30.0, 35.0, 12.0, 15.0],
+                "bowl_econ_wtd": [np.nan, np.nan, np.nan, 7.0, 8.0],
+                "bowl_sr_wtd": [np.nan, np.nan, np.nan, 18.0, 20.0],
+            }
+        )
 
     def test_returns_correct_groups(self, sample_df):
         priors = compute_group_priors(sample_df)
@@ -153,26 +156,33 @@ class TestComputeGroupPriors:
 # End-to-end apply_shrinkage
 # ---------------------------------------------------------------------------
 
+
 class TestApplyShrinkage:
     def test_high_volume_player_keeps_stats(self):
-        df = pd.DataFrame({
-            "player_id": ["p1"],
-            "snapshot_month": [pd.Timestamp("2022-06-01")],
-            "format": ["t20"],
-            "role": ["pure_bat"],
-            "bat_balls_wtd": [500.0],
-            "bat_sr_wtd": [150.0],
-            "bat_avg_wtd": [40.0],
-            "bowl_balls_wtd": [0.0],
-            "bowl_econ_wtd": [np.nan],
-            "bowl_sr_wtd": [np.nan],
-        })
-        priors = {"pure_bat": {"t20": {
-            "bat_sr_wtd": {"mean": 120.0, "var": 100.0, "count": 50},
-            "bat_avg_wtd": {"mean": 25.0, "var": 50.0, "count": 50},
-            "bowl_econ_wtd": {"mean": 8.0, "var": 4.0, "count": 5},
-            "bowl_sr_wtd": {"mean": 20.0, "var": 10.0, "count": 5},
-        }}}
+        df = pd.DataFrame(
+            {
+                "player_id": ["p1"],
+                "snapshot_month": [pd.Timestamp("2022-06-01")],
+                "format": ["t20"],
+                "role": ["pure_bat"],
+                "bat_balls_wtd": [500.0],
+                "bat_sr_wtd": [150.0],
+                "bat_avg_wtd": [40.0],
+                "bowl_balls_wtd": [0.0],
+                "bowl_econ_wtd": [np.nan],
+                "bowl_sr_wtd": [np.nan],
+            }
+        )
+        priors = {
+            "pure_bat": {
+                "t20": {
+                    "bat_sr_wtd": {"mean": 120.0, "var": 100.0, "count": 50},
+                    "bat_avg_wtd": {"mean": 25.0, "var": 50.0, "count": 50},
+                    "bowl_econ_wtd": {"mean": 8.0, "var": 4.0, "count": 5},
+                    "bowl_sr_wtd": {"mean": 20.0, "var": 10.0, "count": 5},
+                }
+            }
+        }
         result = apply_shrinkage(df, priors, prior_n=30.0)
 
         # High-volume batter: rating should be close to raw stats
@@ -183,24 +193,30 @@ class TestApplyShrinkage:
         assert result["bat_uncertainty"].iloc[0] < 0.1
 
     def test_zero_volume_gets_prior(self):
-        df = pd.DataFrame({
-            "player_id": ["p2"],
-            "snapshot_month": [pd.Timestamp("2022-06-01")],
-            "format": ["t20"],
-            "role": ["pure_bowl"],
-            "bat_balls_wtd": [0.0],
-            "bat_sr_wtd": [np.nan],
-            "bat_avg_wtd": [np.nan],
-            "bowl_balls_wtd": [0.0],
-            "bowl_econ_wtd": [np.nan],
-            "bowl_sr_wtd": [np.nan],
-        })
-        priors = {"pure_bowl": {"t20": {
-            "bat_sr_wtd": {"mean": 100.0, "var": 100.0, "count": 50},
-            "bat_avg_wtd": {"mean": 15.0, "var": 50.0, "count": 50},
-            "bowl_econ_wtd": {"mean": 7.5, "var": 4.0, "count": 50},
-            "bowl_sr_wtd": {"mean": 18.0, "var": 10.0, "count": 50},
-        }}}
+        df = pd.DataFrame(
+            {
+                "player_id": ["p2"],
+                "snapshot_month": [pd.Timestamp("2022-06-01")],
+                "format": ["t20"],
+                "role": ["pure_bowl"],
+                "bat_balls_wtd": [0.0],
+                "bat_sr_wtd": [np.nan],
+                "bat_avg_wtd": [np.nan],
+                "bowl_balls_wtd": [0.0],
+                "bowl_econ_wtd": [np.nan],
+                "bowl_sr_wtd": [np.nan],
+            }
+        )
+        priors = {
+            "pure_bowl": {
+                "t20": {
+                    "bat_sr_wtd": {"mean": 100.0, "var": 100.0, "count": 50},
+                    "bat_avg_wtd": {"mean": 15.0, "var": 50.0, "count": 50},
+                    "bowl_econ_wtd": {"mean": 7.5, "var": 4.0, "count": 50},
+                    "bowl_sr_wtd": {"mean": 18.0, "var": 10.0, "count": 50},
+                }
+            }
+        }
         result = apply_shrinkage(df, priors, prior_n=30.0)
 
         # Zero-volume: bat_rating should be 100*0.6 + 15*0.4 = 66

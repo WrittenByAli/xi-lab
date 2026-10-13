@@ -16,9 +16,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
-
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -155,7 +154,7 @@ def build_phase_features(
     over_vals = legal["over"].values
 
     phase_col = np.full(len(legal), phase_names[-1], dtype=object)
-    for rng, name in zip(phases, phase_names):
+    for rng, name in zip(phases, phase_names, strict=False):
         mask = (over_vals >= rng[0]) & (over_vals <= rng[1])
         phase_col[mask] = name
 
@@ -168,26 +167,28 @@ def build_phase_features(
             continue
 
         bat = ph.groupby("batter_id", sort=False).agg(
-            balls=("_w", "sum"), runs=("_w_runs", "sum"),
+            balls=("_w", "sum"),
+            runs=("_w_runs", "sum"),
         )
         bat[f"bat_sr_{pname}_wtd"] = np.where(
             bat["balls"].values > 0, bat["runs"].values / bat["balls"].values * 100, np.nan
         )
-        bat = bat.rename(columns={"balls": f"bat_balls_{pname}_wtd"})[[
-            f"bat_sr_{pname}_wtd", f"bat_balls_{pname}_wtd"
-        ]]
+        bat = bat.rename(columns={"balls": f"bat_balls_{pname}_wtd"})[
+            [f"bat_sr_{pname}_wtd", f"bat_balls_{pname}_wtd"]
+        ]
         bat.index.name = "player_id"
         parts.append(bat)
 
         bowl = ph.groupby("bowler_id", sort=False).agg(
-            balls=("_w", "sum"), runs=("_w_runs_conceded", "sum"),
+            balls=("_w", "sum"),
+            runs=("_w_runs_conceded", "sum"),
         )
         bowl[f"bowl_econ_{pname}_wtd"] = np.where(
             bowl["balls"].values > 0, bowl["runs"].values / bowl["balls"].values * 6, np.nan
         )
-        bowl = bowl.rename(columns={"balls": f"bowl_balls_{pname}_wtd"})[[
-            f"bowl_econ_{pname}_wtd", f"bowl_balls_{pname}_wtd"
-        ]]
+        bowl = bowl.rename(columns={"balls": f"bowl_balls_{pname}_wtd"})[
+            [f"bowl_econ_{pname}_wtd", f"bowl_balls_{pname}_wtd"]
+        ]
         bowl.index.name = "player_id"
         parts.append(bowl)
 
@@ -262,7 +263,7 @@ def build_snapshots_for_format(fmt: str) -> pd.DataFrame:
     all_snapshots = []
     for i, cutoff in enumerate(months):
         if i % 12 == 0:
-            print(f"  {cutoff.date()} ({i+1}/{len(months)})")
+            print(f"  {cutoff.date()} ({i + 1}/{len(months)})")
 
         prepared = _prepare_balls(balls, match_dates, cutoff, half_life)
         if prepared is None:
@@ -300,7 +301,9 @@ def build_snapshots_for_format(fmt: str) -> pd.DataFrame:
         all_snapshots.append(snap)
 
     result = pd.concat(all_snapshots, ignore_index=True)
-    print(f"[{fmt}] {len(result):,} total snapshot rows ({result['player_id'].nunique():,} unique players)")
+    print(
+        f"[{fmt}] {len(result):,} total snapshot rows ({result['player_id'].nunique():,} unique players)"
+    )
     return result
 
 

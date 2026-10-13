@@ -82,7 +82,7 @@ def get_player_profile(player_id: str, fmt: str = "t20") -> dict | None:
 
             phase_ratings = []
             for pname in ["powerplay", "middle", "death"]:
-                pr = {"phase": pname}
+                pr: dict[str, object] = {"phase": pname}
                 sr_key = f"bat_sr_{pname}_wtd"
                 econ_key = f"bowl_econ_{pname}_wtd"
                 balls_key = f"bat_balls_{pname}_wtd"
@@ -104,7 +104,7 @@ def _safe_float(val) -> float | None:
         return None
 
 
-def build_score_distribution(scores: np.ndarray) -> dict:
+def build_score_distribution(scores: np.ndarray) -> dict[str, float]:
     return {
         "mean": round(float(scores.mean()), 2),
         "std": round(float(scores.std()), 2),

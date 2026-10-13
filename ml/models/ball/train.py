@@ -67,10 +67,13 @@ CATEGORICAL_FEATURES = [
     "bowl_type",
 ]
 
-ALL_FEATURES = SITUATION_FEATURES + BATTER_SNAPSHOT_FEATURES + BOWLER_SNAPSHOT_FEATURES + CATEGORICAL_FEATURES
+ALL_FEATURES = (
+    SITUATION_FEATURES + BATTER_SNAPSHOT_FEATURES + BOWLER_SNAPSHOT_FEATURES + CATEGORICAL_FEATURES
+)
 
 
 # ── As-of snapshot join ──────────────────────────────────────────────────────
+
 
 def asof_join_snapshots(
     balls: pd.DataFrame,
@@ -108,8 +111,7 @@ def asof_join_snapshots(
 
     # -- Batter snapshot join --
     batter_cols = ["player_id", "snapshot_month"] + [
-        c for c in BATTER_SNAPSHOT_FEATURES + CATEGORICAL_FEATURES
-        if c in snaps.columns
+        c for c in BATTER_SNAPSHOT_FEATURES + CATEGORICAL_FEATURES if c in snaps.columns
     ]
     batter_snaps = snaps[batter_cols].drop_duplicates()
     batter_snaps = batter_snaps.rename(columns={"player_id": "batter_id"})
@@ -134,9 +136,7 @@ def asof_join_snapshots(
     )
 
     # -- Bowler snapshot join --
-    bowler_feature_cols = [
-        c for c in BOWLER_SNAPSHOT_FEATURES if c in snaps.columns
-    ]
+    bowler_feature_cols = [c for c in BOWLER_SNAPSHOT_FEATURES if c in snaps.columns]
     # bowl_type may also be in snapshots — grab it for bowler if not already present
     bowler_extra_cats = [c for c in ["bowl_type"] if c in snaps.columns and c not in balls.columns]
     bowler_cols = ["player_id", "snapshot_month"] + bowler_feature_cols + bowler_extra_cats
@@ -159,6 +159,7 @@ def asof_join_snapshots(
 
 
 # ── Label encoding ───────────────────────────────────────────────────────────
+
 
 def encode_categoricals(
     df: pd.DataFrame,
@@ -190,6 +191,7 @@ def encode_categoricals(
 
 # ── Split helpers ────────────────────────────────────────────────────────────
 
+
 def split_by_date(
     df: pd.DataFrame,
     splits: dict,
@@ -208,6 +210,7 @@ def split_by_date(
 
 
 # ── Training ─────────────────────────────────────────────────────────────────
+
 
 def train_model(
     train: pd.DataFrame,
@@ -236,7 +239,7 @@ def train_model(
     train_ds = lgb.Dataset(train[features], label=train[target_col])
     val_ds = lgb.Dataset(val[features], label=val[target_col], reference=train_ds)
 
-    callbacks = [
+    callbacks: list = [
         lgb.early_stopping(params_cfg["early_stopping_rounds"]),
         lgb.log_evaluation(100),
     ]
@@ -255,6 +258,7 @@ def train_model(
 
 # ── Evaluation ───────────────────────────────────────────────────────────────
 
+
 def evaluate_model(
     model: lgb.Booster,
     df: pd.DataFrame,
@@ -272,7 +276,10 @@ def evaluate_model(
     acc = float(accuracy_score(y_true, y_pred))
 
     precision, recall, f1, support = precision_recall_fscore_support(
-        y_true, y_pred, labels=list(range(len(outcome_classes))), zero_division=0,
+        y_true,
+        y_pred,
+        labels=list(range(len(outcome_classes))),
+        zero_division=0,
     )
 
     per_class = {}
@@ -287,7 +294,7 @@ def evaluate_model(
     # Feature importance (top 20)
     importance = model.feature_importance(importance_type="gain")
     feat_names = model.feature_name()
-    feat_imp = sorted(zip(feat_names, importance.tolist()), key=lambda x: -x[1])[:20]
+    feat_imp = sorted(zip(feat_names, importance.tolist(), strict=False), key=lambda x: -x[1])[:20]
 
     return {
         "split": split_name,
@@ -295,18 +302,21 @@ def evaluate_model(
         "accuracy": round(acc, 4),
         "n_samples": len(df),
         "per_class": per_class,
-        "feature_importance_top20": [
-            {"feature": f, "gain": round(g, 2)} for f, g in feat_imp
-        ],
+        "feature_importance_top20": [{"feature": f, "gain": round(g, 2)} for f, g in feat_imp],
     }
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(description="Train LightGBM ball-outcome model")
-    parser.add_argument("--format", default="t20", choices=["t20", "odi", "test"],
-                        help="Cricket format (default: t20)")
+    parser.add_argument(
+        "--format",
+        default="t20",
+        choices=["t20", "odi", "test"],
+        help="Cricket format (default: t20)",
+    )
     args = parser.parse_args()
 
     fmt = args.format
@@ -350,7 +360,7 @@ def main():
 
     # ── Encode categoricals ──────────────────────────────────────────────────
     print("Encoding categorical features...")
-    available_cats = [c for c in CATEGORICAL_FEATURES if c in df.columns or True]
+    available_cats = [c for c in CATEGORICAL_FEATURES if True]
     df, encoders = encode_categoricals(df, available_cats, fit=True)
 
     # ── Fill NaN in numeric features ─────────────────────────────────────────
@@ -376,11 +386,17 @@ def main():
     metrics = {}
     metrics["val"] = evaluate_model(model, val, ALL_FEATURES, "target", outcome_classes, "val")
     if len(test) > 0:
-        metrics["test"] = evaluate_model(model, test, ALL_FEATURES, "target", outcome_classes, "test")
+        metrics["test"] = evaluate_model(
+            model, test, ALL_FEATURES, "target", outcome_classes, "test"
+        )
 
-    print(f"  Val log_loss: {metrics['val']['log_loss']:.4f}  accuracy: {metrics['val']['accuracy']:.4f}")
+    print(
+        f"  Val log_loss: {metrics['val']['log_loss']:.4f}  accuracy: {metrics['val']['accuracy']:.4f}"
+    )
     if "test" in metrics:
-        print(f"  Test log_loss: {metrics['test']['log_loss']:.4f}  accuracy: {metrics['test']['accuracy']:.4f}")
+        print(
+            f"  Test log_loss: {metrics['test']['log_loss']:.4f}  accuracy: {metrics['test']['accuracy']:.4f}"
+        )
 
     # ── Save model ───────────────────────────────────────────────────────────
     model_dir = ROOT / "data" / "processed" / "models" / "ball"
@@ -397,9 +413,7 @@ def main():
     # Also store the label encoders mapping and feature list for reproducibility
     metrics["outcome_classes"] = outcome_classes
     metrics["features"] = ALL_FEATURES
-    metrics["encoders"] = {
-        col: list(le.classes_) for col, le in encoders.items()
-    }
+    metrics["encoders"] = {col: list(le.classes_) for col, le in encoders.items()}
 
     with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)

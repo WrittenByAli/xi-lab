@@ -1,4 +1,4 @@
-﻿"""
+"""
 Leakage tests — wired into CI and must always pass.
 
 Three tests:
@@ -13,8 +13,7 @@ These tests run on fixture data (tests/fixtures/), not on the full dataset.
 
 from __future__ import annotations
 
-import json
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -27,6 +26,7 @@ PARAMS = Path(__file__).resolve().parents[2] / "params.yaml"
 def load_params() -> dict:
     try:
         import yaml  # type: ignore
+
         with PARAMS.open() as f:
             return yaml.safe_load(f)
     except ImportError:
@@ -44,6 +44,7 @@ PARAMS_DATA = load_params()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _load_fixture_balls(fmt: str = "t20") -> pd.DataFrame:
     p = FIXTURES / f"balls_{fmt}.parquet"
@@ -68,6 +69,7 @@ def _load_fixture_snapshots() -> pd.DataFrame:
 
 # ── Test 1: Truncation test ───────────────────────────────────────────────────
 
+
 class TestTruncation:
     """
     For each sampled match, rebuild features using only data before match date.
@@ -86,7 +88,7 @@ class TestTruncation:
 
         for _, match in sample.iterrows():
             match_date = pd.Timestamp(match["date"])
-            cutoff = match_date - timedelta(days=1)
+            match_date - timedelta(days=1)
 
             # All balls used to build this match's snapshot must predate the match
             snapshot_rows = snapshots[snapshots["snapshot_date"] <= match_date]
@@ -114,6 +116,7 @@ class TestTruncation:
 
 
 # ── Test 2: Poison test ───────────────────────────────────────────────────────
+
 
 class TestPoison:
     """
@@ -145,9 +148,7 @@ class TestPoison:
         balls_poisoned.loc[post_mask, "runs_batter"] = poison_value
 
         # Pre-poison balls must be unchanged
-        pre_balls_after = balls_poisoned[
-            balls_poisoned["match_id"].isin(pre_matches["match_id"])
-        ]
+        pre_balls_after = balls_poisoned[balls_poisoned["match_id"].isin(pre_matches["match_id"])]
         checksum_after = int(pre_balls_after["runs_batter"].sum())
 
         assert checksum_before == checksum_after, (
@@ -158,6 +159,7 @@ class TestPoison:
 
 
 # ── Test 3: Snapshot date ordering ───────────────────────────────────────────
+
 
 class TestSnapshotOrder:
     """
@@ -172,12 +174,10 @@ class TestSnapshotOrder:
             pytest.skip("snapshot fixture missing match_date or snapshot_date columns")
 
         violations = snapshots[
-            pd.to_datetime(snapshots["snapshot_date"])
-            > pd.to_datetime(snapshots["match_date"])
+            pd.to_datetime(snapshots["snapshot_date"]) > pd.to_datetime(snapshots["match_date"])
         ]
 
         assert len(violations) == 0, (
             f"Snapshot order violation: {len(violations)} matches have "
             f"snapshot_date > match_date:\n{violations.head()}"
         )
-

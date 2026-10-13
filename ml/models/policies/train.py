@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import yaml
 
@@ -53,7 +52,7 @@ def train_batting_order_policy(
     lu = lineups[lineups["match_id"].isin(train_matches)]
     lu = lu.dropna(subset=["bat_position_actual"])
 
-    pos_stats = lu.groupby("bat_position_actual").agg(
+    lu.groupby("bat_position_actual").agg(
         count=("player_id", "count"),
     ).reset_index()
 
@@ -66,14 +65,17 @@ def train_batting_order_policy(
         how="left",
     )
 
-    sr_by_pos = b_with_lu.dropna(subset=["bat_position_actual"]).groupby(
-        "bat_position_actual"
-    ).agg(
-        avg_sr=("runs_batter", lambda x: x.mean() * 100),
-        avg_dot_pct=("runs_batter", lambda x: (x == 0).mean()),
-        boundary_pct=("runs_batter", lambda x: (x >= 4).mean()),
-        total_balls=("runs_batter", "count"),
-    ).reset_index()
+    sr_by_pos = (
+        b_with_lu.dropna(subset=["bat_position_actual"])
+        .groupby("bat_position_actual")
+        .agg(
+            avg_sr=("runs_batter", lambda x: x.mean() * 100),
+            avg_dot_pct=("runs_batter", lambda x: (x == 0).mean()),
+            boundary_pct=("runs_batter", lambda x: (x >= 4).mean()),
+            total_balls=("runs_batter", "count"),
+        )
+        .reset_index()
+    )
 
     role_position = {}
     roles = ["pure_bat", "keeper_bat", "bat_allrounder", "bowl_allrounder", "pure_bowl"]
@@ -90,7 +92,7 @@ def train_batting_order_policy(
         weights = {}
         for pos in range(1, 12):
             if pos in positions:
-                weights[str(pos)] = 1.0 / (1 + abs(pos - positions[len(positions)//2]))
+                weights[str(pos)] = 1.0 / (1 + abs(pos - positions[len(positions) // 2]))
             else:
                 weights[str(pos)] = 0.05
         total = sum(weights.values())
@@ -125,24 +127,37 @@ def train_bowling_plan_policy(
     b_train = balls[balls["match_id"].isin(train_matches) & balls["is_legal"]]
 
     def _phase(over):
-        if over < 6: return "powerplay"
-        if over < 15: return "middle"
+        if over < 6:
+            return "powerplay"
+        if over < 15:
+            return "middle"
         return "death"
 
     b_train = b_train.assign(phase=b_train["over"].map(_phase))
 
-    phase_bowler_stats = b_train.groupby(["bowler_id", "phase"]).agg(
-        balls=("runs_batter", "count"),
-        runs=("runs_batter", "sum"),
-        wickets=("outcome_class", lambda x: (x == "wicket").sum()),
-    ).reset_index()
+    phase_bowler_stats = (
+        b_train.groupby(["bowler_id", "phase"])
+        .agg(
+            balls=("runs_batter", "count"),
+            runs=("runs_batter", "sum"),
+            wickets=("outcome_class", lambda x: (x == "wicket").sum()),
+        )
+        .reset_index()
+    )
 
     phase_bowler_stats["econ"] = phase_bowler_stats["runs"] / phase_bowler_stats["balls"] * 6
 
-    phase_avg = phase_bowler_stats.groupby("phase").agg(
-        avg_econ=("econ", "mean"),
-        avg_wicket_rate=("wickets", lambda x: x.sum() / phase_bowler_stats.loc[x.index, "balls"].sum()),
-    ).to_dict(orient="index")
+    phase_avg = (
+        phase_bowler_stats.groupby("phase")
+        .agg(
+            avg_econ=("econ", "mean"),
+            avg_wicket_rate=(
+                "wickets",
+                lambda x: x.sum() / phase_bowler_stats.loc[x.index, "balls"].sum(),
+            ),
+        )
+        .to_dict(orient="index")
+    )
 
     allocation_rules = {
         "pure_bowl": {"powerplay": 2, "middle": 1, "death": 1},
@@ -152,7 +167,9 @@ def train_bowling_plan_policy(
 
     return {
         "allocation_rules": allocation_rules,
-        "phase_averages": {k: {k2: round(v2, 4) for k2, v2 in v.items()} for k, v in phase_avg.items()},
+        "phase_averages": {
+            k: {k2: round(v2, 4) for k2, v2 in v.items()} for k, v in phase_avg.items()
+        },
         "overs_distribution": overs_dist.to_dict(orient="records"),
         "train_matches": len(train_matches),
     }

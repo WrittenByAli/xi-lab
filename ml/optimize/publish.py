@@ -29,12 +29,14 @@ PARAMS = yaml.safe_load((ROOT / "params.yaml").read_text())
 
 def _load_player_meta() -> dict:
     import pandas as pd
+
     meta = pd.read_csv(ROOT / "data" / "reference" / "player_meta.csv", comment="#")
     return {row["player_id"]: row.to_dict() for _, row in meta.iterrows()}
 
 
 def _load_ratings() -> dict:
     import pandas as pd
+
     path = ROOT / "data" / "processed" / "models" / "ability" / "ratings.parquet"
     if not path.exists():
         return {}
@@ -71,17 +73,19 @@ def main():
     for pid in squad_ids:
         info = meta.get(pid, {})
         rating = ratings.get(pid, {})
-        squad.append(PlayerOption(
-            player_id=pid,
-            name=info.get("name", pid),
-            role=rating.get("role", "pure_bat"),
-            bat_rating=float(rating.get("bat_rating", 0.5)),
-            bowl_rating=float(rating.get("bowl_rating", 0.5)),
-            is_keeper=bool(info.get("is_keeper", False)),
-            is_overseas=False,
-            bat_hand=str(info.get("bat_hand", "R")),
-            bowl_type=str(info.get("bowl_type", "none")),
-        ))
+        squad.append(
+            PlayerOption(
+                player_id=pid,
+                name=info.get("name", pid),
+                role=rating.get("role", "pure_bat"),
+                bat_rating=float(rating.get("bat_rating", 0.5)),
+                bowl_rating=float(rating.get("bowl_rating", 0.5)),
+                is_keeper=bool(info.get("is_keeper", False)),
+                is_overseas=False,
+                bat_hand=str(info.get("bat_hand", "R")),
+                bowl_type=str(info.get("bowl_type", "none")),
+            )
+        )
 
     result = select_xi(squad)
 

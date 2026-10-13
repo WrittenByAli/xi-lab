@@ -49,13 +49,13 @@ def run(fmt: str = "t20", top_n: int = 100) -> None:
     involvement["covered"] = involvement.index.isin(covered_ids)
     covered_balls = involvement.loc[involvement["covered"], "total"].sum()
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  player_meta coverage report  ({fmt.upper()})")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Total players in data : {len(involvement):,}")
     print(f"  Covered in meta       : {involvement['covered'].sum():,}")
-    print(f"  Ball coverage         : {covered_balls/total_balls*100:.1f}%")
-    print(f"{'='*60}\n")
+    print(f"  Ball coverage         : {covered_balls / total_balls * 100:.1f}%")
+    print(f"{'=' * 60}\n")
 
     missing = involvement[~involvement["covered"]].head(top_n)
     if missing.empty:
@@ -64,7 +64,7 @@ def run(fmt: str = "t20", top_n: int = 100) -> None:
 
     print(f"  Top {top_n} uncovered players (add these to player_meta.csv):\n")
     print(f"  {'Rank':<5} {'player_id':<40} {'balls_faced':>12} {'balls_bowled':>12} {'total':>8}")
-    print(f"  {'-'*5} {'-'*40} {'-'*12} {'-'*12} {'-'*8}")
+    print(f"  {'-' * 5} {'-' * 40} {'-' * 12} {'-' * 12} {'-' * 8}")
     for rank, (pid, row) in enumerate(missing.iterrows(), 1):
         print(
             f"  {rank:<5} {pid:<40} "

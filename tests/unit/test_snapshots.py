@@ -1,11 +1,11 @@
 """Tests for ml/features/snapshots.py — correctness and no-leakage guarantees."""
 
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
-
-import sys
-from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -16,52 +16,58 @@ from ml.features.snapshots import (
     build_bowling_features,
 )
 
-
 # ── Fixtures ─────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def synthetic_balls():
     """Minimal balls DataFrame for unit tests."""
     rows = []
     for i in range(20):
-        rows.append({
-            "match_id": "m1" if i < 10 else "m2",
-            "innings_no": 1,
-            "over": i % 6,
-            "legal_ball_idx": 0,
-            "delivery_seq": i,
-            "batter_id": "Bat_A",
-            "non_striker_id": "Bat_B",
-            "bowler_id": "Bowl_X",
-            "runs_batter": 4 if i % 5 == 0 else 1,
-            "runs_extras": 0,
-            "extras_type": None,
-            "is_wide": False,
-            "is_noball": False,
-            "is_legal": True,
-            "wicket_kind": "bowled" if i == 7 else None,
-            "player_out_id": "Bat_A" if i == 7 else None,
-            "score_before": 0,
-            "wkts_before": 0,
-            "legal_balls_before": i,
-            "target": None,
-            "rrr_before": None,
-            "outcome_class": "4" if i % 5 == 0 else "1",
-        })
+        rows.append(
+            {
+                "match_id": "m1" if i < 10 else "m2",
+                "innings_no": 1,
+                "over": i % 6,
+                "legal_ball_idx": 0,
+                "delivery_seq": i,
+                "batter_id": "Bat_A",
+                "non_striker_id": "Bat_B",
+                "bowler_id": "Bowl_X",
+                "runs_batter": 4 if i % 5 == 0 else 1,
+                "runs_extras": 0,
+                "extras_type": None,
+                "is_wide": False,
+                "is_noball": False,
+                "is_legal": True,
+                "wicket_kind": "bowled" if i == 7 else None,
+                "player_out_id": "Bat_A" if i == 7 else None,
+                "score_before": 0,
+                "wkts_before": 0,
+                "legal_balls_before": i,
+                "target": None,
+                "rrr_before": None,
+                "outcome_class": "4" if i % 5 == 0 else "1",
+            }
+        )
     return pd.DataFrame(rows)
 
 
 @pytest.fixture
 def synthetic_match_dates():
-    s = pd.Series({
-        "m1": pd.Timestamp("2023-06-15"),
-        "m2": pd.Timestamp("2023-09-10"),
-    }, name="date")
+    s = pd.Series(
+        {
+            "m1": pd.Timestamp("2023-06-15"),
+            "m2": pd.Timestamp("2023-09-10"),
+        },
+        name="date",
+    )
     s.index.name = "match_id"
     return s
 
 
 # ── Tests ────────────────────────────────────────────────────────────────────
+
 
 class TestDecayWeights:
     def test_zero_days_ago_is_one(self):
@@ -75,7 +81,7 @@ class TestDecayWeights:
     def test_monotonically_decreasing(self):
         days = np.array([0.0, 100.0, 365.0, 730.0, 1460.0])
         w = _decay_weights(days, half_life=730)
-        assert all(w[i] > w[i+1] for i in range(len(w)-1))
+        assert all(w[i] > w[i + 1] for i in range(len(w) - 1))
 
 
 class TestNoLeakage:
