@@ -25,10 +25,10 @@ ODI, and Test cricket.
 | Backtest evaluator (Brier, log loss, calibration) | Done |
 | FastAPI backend (6 routers, 11 endpoints) | Done |
 | CI/CD (GitHub Actions, Docker) | Done |
-| T20 format | Done |
-| ODI format | Snapshots ready, models pending |
+| T20 format (Brier 0.23, accuracy 60%) | Done |
+| ODI format (Brier 0.26, accuracy 55%) | Done |
 | Test format | Planned |
-| React frontend | Planned |
+| React frontend (dark theme, 5 pages) | Done |
 
 ---
 

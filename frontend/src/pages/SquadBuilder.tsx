@@ -25,8 +25,11 @@ function makePlayerIn(p: PlayerSearchResult): PlayerIn {
   }
 }
 
+const FORMATS = ['t20', 'odi'] as const
+
 export default function SquadBuilder() {
   const [squad, setSquad] = useState<PlayerIn[]>([])
+  const [format, setFormat] = useState<string>('t20')
   const [searchQ, setSearchQ] = useState('')
   const [searchResults, setSearchResults] = useState<PlayerSearchResult[]>([])
   const [result, setResult] = useState<RecommendResponse | null>(null)
@@ -65,7 +68,7 @@ export default function SquadBuilder() {
     setError('')
     setLoading(true)
     try {
-      const r = await api.recommend(squad)
+      const r = await api.recommend(squad, format)
       setResult(r)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to get recommendation')
@@ -79,10 +82,29 @@ export default function SquadBuilder() {
         title="Squad Builder"
         description="Add players to your squad, then get the optimal XI"
       >
-        <Button onClick={recommend} disabled={squad.length < 11 || loading}>
-          <Zap className="w-4 h-4" />
-          {loading ? 'Computing...' : 'Get Best XI'}
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex bg-surface-2 rounded-lg p-0.5">
+            {FORMATS.map((f) => (
+              <button
+                key={f}
+                onClick={() => setFormat(f)}
+                className={`
+                  px-3 py-1.5 rounded-md text-[12px] font-medium uppercase tracking-wider
+                  transition-all duration-150 cursor-pointer
+                  ${format === f
+                    ? 'bg-surface-3 text-accent shadow-sm'
+                    : 'text-text-tertiary hover:text-text-secondary'}
+                `}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+          <Button onClick={recommend} disabled={squad.length < 11 || loading}>
+            <Zap className="w-4 h-4" />
+            {loading ? 'Computing...' : 'Get Best XI'}
+          </Button>
+        </div>
       </PageHeader>
 
       <div className="px-8 flex gap-6">
