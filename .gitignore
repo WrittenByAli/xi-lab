@@ -32,8 +32,8 @@ data/raw/
 data/interim/
 data/processed/
 
-# Models — tracked by DVC
-models/
+# Models artifacts — tracked by DVC (not ml/models/ source code)
+/models/
 
 # MLflow
 mlruns/
