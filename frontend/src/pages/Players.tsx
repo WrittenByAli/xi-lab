@@ -31,13 +31,20 @@ export default function Players() {
     }, 250)
   }, [])
 
-  const selectPlayer = async (id: string) => {
+  const [format, setFormat] = useState<string>('t20')
+
+  const selectPlayer = async (id: string, fmt?: string) => {
     setLoadingProfile(true)
     try {
-      const p = await api.getPlayer(id)
+      const p = await api.getPlayer(id, fmt ?? format)
       setSelected(p)
     } catch (_) { /* */ }
     setLoadingProfile(false)
+  }
+
+  const switchFormat = (f: string) => {
+    setFormat(f)
+    if (selected) selectPlayer(selected.player_id, f)
   }
 
   return (
@@ -45,7 +52,25 @@ export default function Players() {
       <PageHeader
         title="Player Explorer"
         description="Search and explore player profiles, ratings, and phase breakdowns"
-      />
+      >
+        <div className="flex bg-surface-2 rounded-lg p-0.5">
+          {(['t20', 'odi'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => switchFormat(f)}
+              className={`
+                px-3 py-1.5 rounded-md text-[12px] font-medium uppercase tracking-wider
+                transition-all duration-150 cursor-pointer
+                ${format === f
+                  ? 'bg-surface-3 text-accent shadow-sm'
+                  : 'text-text-tertiary hover:text-text-secondary'}
+              `}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </PageHeader>
 
       <div className="px-8 flex gap-6">
         {/* Search panel */}
@@ -162,6 +187,24 @@ export default function Players() {
                     </button>
                   </div>
                 </Card>
+
+                {/* Ratings */}
+                {(selected.bat_rating != null || selected.bowl_rating != null) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-role-bat/8 border border-role-bat/15 p-4">
+                      <div className="text-[10px] uppercase tracking-wider text-role-bat/80">Bat Rating</div>
+                      <div className="stat text-2xl font-bold text-role-bat mt-1">
+                        {selected.bat_rating?.toFixed(1) ?? '—'}
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-role-bowl/8 border border-role-bowl/15 p-4">
+                      <div className="text-[10px] uppercase tracking-wider text-role-bowl/80">Bowl Rating</div>
+                      <div className="stat text-2xl font-bold text-role-bowl mt-1">
+                        {selected.bowl_rating?.toFixed(1) ?? '—'}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Stats grid */}
                 <div className="grid grid-cols-4 gap-3">

@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, Zap, GripVertical } from 'lucide-react'
+import { Plus, Trash2, Zap, GripVertical, Users, ChevronDown, X, Search } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import Card, { CardTitle } from '../components/ui/Card'
 import Badge, { roleBadgeVariant, roleLabel } from '../components/ui/Badge'
@@ -9,7 +9,7 @@ import Input from '../components/ui/Input'
 import Skeleton from '../components/ui/Skeleton'
 import PlayerCard from '../components/cricket/PlayerCard'
 import { api } from '../lib/api'
-import type { PlayerIn, PlayerSearchResult, RecommendResponse } from '../lib/api'
+import type { PlayerIn, PlayerSearchResult, RecommendResponse, TeamSummary, SquadPlayer } from '../lib/api'
 
 function makePlayerIn(p: PlayerSearchResult): PlayerIn {
   return {
@@ -18,6 +18,20 @@ function makePlayerIn(p: PlayerSearchResult): PlayerIn {
     role: 'pure_bat',
     bat_rating: 0.5,
     bowl_rating: 0.5,
+    is_keeper: p.is_keeper,
+    is_overseas: false,
+    bat_hand: p.bat_hand ?? 'R',
+    bowl_type: p.bowl_type ?? 'none',
+  }
+}
+
+function squadPlayerToPlayerIn(p: SquadPlayer): PlayerIn {
+  return {
+    player_id: p.player_id,
+    name: p.name,
+    role: p.role,
+    bat_rating: p.bat_rating,
+    bowl_rating: p.bowl_rating,
     is_keeper: p.is_keeper,
     is_overseas: false,
     bat_hand: p.bat_hand ?? 'R',
@@ -36,6 +50,40 @@ export default function SquadBuilder() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const debounce = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  // Team preset state
+  const [showTeamPicker, setShowTeamPicker] = useState(false)
+  const [teams, setTeams] = useState<TeamSummary[]>([])
+  const [teamsLoading, setTeamsLoading] = useState(false)
+  const [teamFilter, setTeamFilter] = useState('')
+  const [loadingSquad, setLoadingSquad] = useState('')
+
+  useEffect(() => {
+    if (showTeamPicker && teams.length === 0) {
+      setTeamsLoading(true)
+      api.listTeams(format, 100).then(setTeams).catch(() => {}).finally(() => setTeamsLoading(false))
+    }
+  }, [showTeamPicker, format, teams.length])
+
+  const loadTeamSquad = async (team: string) => {
+    setLoadingSquad(team)
+    try {
+      const data = await api.getSquad(team, format)
+      const top = data.players.slice(0, 18)
+      setSquad(top.map(squadPlayerToPlayerIn))
+      setResult(null)
+      setShowTeamPicker(false)
+    } catch (_) {
+      setError(`Failed to load squad for ${team}`)
+    }
+    setLoadingSquad('')
+  }
+
+  const switchFormat = (f: string) => {
+    setFormat(f)
+    setTeams([])
+    setResult(null)
+  }
 
   const searchPlayers = useCallback((q: string) => {
     setSearchQ(q)
@@ -76,18 +124,22 @@ export default function SquadBuilder() {
     setLoading(false)
   }
 
+  const filteredTeams = teamFilter
+    ? teams.filter(t => t.team.toLowerCase().includes(teamFilter.toLowerCase()))
+    : teams
+
   return (
     <div className="pb-12">
       <PageHeader
         title="Squad Builder"
-        description="Add players to your squad, then get the optimal XI"
+        description="Load a team roster or search players, then get the optimal XI"
       >
         <div className="flex items-center gap-3">
           <div className="flex bg-surface-2 rounded-lg p-0.5">
             {FORMATS.map((f) => (
               <button
                 key={f}
-                onClick={() => setFormat(f)}
+                onClick={() => switchFormat(f)}
                 className={`
                   px-3 py-1.5 rounded-md text-[12px] font-medium uppercase tracking-wider
                   transition-all duration-150 cursor-pointer
@@ -110,41 +162,52 @@ export default function SquadBuilder() {
       <div className="px-8 flex gap-6">
         {/* Left: Squad management */}
         <div className="flex-1 min-w-0 space-y-4">
-          {/* Search to add */}
-          <div className="relative">
-            <Input
-              icon
-              placeholder="Search players to add..."
-              value={searchQ}
-              onChange={(e) => searchPlayers(e.target.value)}
-            />
-            <AnimatePresence>
-              {searchResults.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  className="absolute z-20 top-full mt-1 w-full bg-surface-2 border border-surface-border rounded-xl shadow-2xl shadow-black/40 overflow-hidden max-h-64 overflow-y-auto"
-                >
-                  {searchResults.slice(0, 8).map((p) => (
-                    <div
-                      key={p.player_id}
-                      onClick={() => addPlayer(p)}
-                      className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-surface-3 transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5 text-accent shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13px] text-text-primary truncate">{p.name}</div>
-                        <div className="text-[11px] text-text-tertiary">
-                          {p.bat_hand}HB{p.bowl_type && p.bowl_type !== 'none' ? ` · ${p.bowl_type}` : ''}
-                          {p.is_keeper ? ' · WK' : ''}
+          {/* Team preset + search row */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowTeamPicker(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-2 border border-surface-border
+                         hover:border-accent/30 hover:bg-surface-3 transition-all cursor-pointer shrink-0"
+            >
+              <Users className="w-4 h-4 text-accent" />
+              <span className="text-[13px] font-medium text-text-primary">Load Team</span>
+              <ChevronDown className="w-3.5 h-3.5 text-text-tertiary" />
+            </button>
+            <div className="relative flex-1">
+              <Input
+                icon
+                placeholder="Search players to add..."
+                value={searchQ}
+                onChange={(e) => searchPlayers(e.target.value)}
+              />
+              <AnimatePresence>
+                {searchResults.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    className="absolute z-20 top-full mt-1 w-full bg-surface-2 border border-surface-border rounded-xl shadow-2xl shadow-black/40 overflow-hidden max-h-64 overflow-y-auto"
+                  >
+                    {searchResults.slice(0, 8).map((p) => (
+                      <div
+                        key={p.player_id}
+                        onClick={() => addPlayer(p)}
+                        className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-surface-3 transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-accent shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] text-text-primary truncate">{p.name}</div>
+                          <div className="text-[11px] text-text-tertiary">
+                            {p.bat_hand}HB{p.bowl_type && p.bowl_type !== 'none' ? ` · ${p.bowl_type}` : ''}
+                            {p.is_keeper ? ' · WK' : ''}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* Squad list */}
@@ -164,8 +227,14 @@ export default function SquadBuilder() {
             </div>
 
             {squad.length === 0 ? (
-              <div className="text-center py-12 text-[13px] text-text-tertiary">
-                Search and add players to build your squad
+              <div className="text-center py-12">
+                <div className="w-14 h-14 rounded-2xl bg-surface-2 flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-6 h-6 text-text-tertiary" />
+                </div>
+                <div className="text-[13px] text-text-tertiary mb-1">No players yet</div>
+                <div className="text-[12px] text-text-tertiary/60">
+                  Click <span className="text-accent font-medium">Load Team</span> to import a roster, or search players above
+                </div>
               </div>
             ) : (
               <div className="space-y-1">
@@ -191,7 +260,7 @@ export default function SquadBuilder() {
                         </div>
                         <div className="flex items-center gap-1.5">
                           {p.is_keeper && <Badge variant="keeper">WK</Badge>}
-                          <span className="text-[11px] text-text-tertiary">{p.bat_hand}HB</span>
+                          <Badge variant={roleBadgeVariant(p.role)}>{roleLabel(p.role)}</Badge>
                         </div>
                         <button
                           onClick={() => removePlayer(p.player_id)}
@@ -303,6 +372,103 @@ export default function SquadBuilder() {
           )}
         </div>
       </div>
+
+      {/* Team picker modal */}
+      <AnimatePresence>
+        {showTeamPicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowTeamPicker(false) }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-[480px] max-h-[70vh] bg-surface-1 border border-surface-border rounded-2xl shadow-2xl shadow-black/60 flex flex-col overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border">
+                <div>
+                  <h3 className="text-[15px] font-semibold text-text-primary">Load Team Roster</h3>
+                  <p className="text-[12px] text-text-tertiary mt-0.5">
+                    Select a team to import their recent {format.toUpperCase()} squad
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowTeamPicker(false)}
+                  className="p-1.5 rounded-lg hover:bg-surface-3 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4 text-text-tertiary" />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="px-5 py-3 border-b border-surface-border">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-tertiary" />
+                  <input
+                    type="text"
+                    placeholder="Filter teams..."
+                    value={teamFilter}
+                    onChange={(e) => setTeamFilter(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-surface-2 border border-surface-border text-[13px]
+                               text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent/40"
+                  />
+                </div>
+              </div>
+
+              {/* Team list */}
+              <div className="flex-1 overflow-y-auto p-2">
+                {teamsLoading ? (
+                  <div className="space-y-1 p-3">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <Skeleton key={i} className="h-12 rounded-lg" />
+                    ))}
+                  </div>
+                ) : filteredTeams.length === 0 ? (
+                  <div className="text-center py-8 text-[13px] text-text-tertiary">
+                    No teams found
+                  </div>
+                ) : (
+                  filteredTeams.map((t) => (
+                    <button
+                      key={t.team}
+                      onClick={() => loadTeamSquad(t.team)}
+                      disabled={loadingSquad === t.team}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl
+                                 hover:bg-surface-2 transition-colors cursor-pointer group text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-surface-3 flex items-center justify-center shrink-0">
+                          <span className="text-[10px] font-bold text-text-secondary uppercase">
+                            {t.team.slice(0, 3)}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-medium text-text-primary group-hover:text-accent transition-colors">
+                            {t.team}
+                          </div>
+                          <div className="text-[11px] text-text-tertiary">
+                            {t.recent_matches} matches · {t.squad_size} players
+                          </div>
+                        </div>
+                      </div>
+                      {loadingSquad === t.team ? (
+                        <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4 text-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

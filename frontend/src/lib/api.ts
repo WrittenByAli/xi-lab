@@ -102,6 +102,31 @@ export interface BacktestMetrics {
   calibration: { bin_center: number; predicted_mean: number; actual_mean: number; count: number }[]
 }
 
+export interface TeamSummary {
+  team: string
+  recent_matches: number
+  squad_size: number
+}
+
+export interface SquadPlayer {
+  player_id: string
+  name: string
+  role: string
+  bat_rating: number
+  bowl_rating: number
+  bat_hand: string
+  bowl_type: string
+  is_keeper: boolean
+  recent_matches: number
+}
+
+export interface TeamSquad {
+  team: string
+  format: string
+  squad_size: number
+  players: SquadPlayer[]
+}
+
 export const api = {
   health: () => request<{ status: string; version: string }>('/health'),
 
@@ -126,4 +151,10 @@ export const api = {
   getResults: (format = 't20') => request<BacktestMetrics>(`/results?format=${format}`),
 
   getAllMetrics: () => request<Record<string, unknown>>('/results/all'),
+
+  listTeams: (format = 't20', limit = 50) =>
+    request<TeamSummary[]>(`/teams?format=${format}&limit=${limit}`),
+
+  getSquad: (team: string, format = 't20', months = 12) =>
+    request<TeamSquad>(`/teams/${encodeURIComponent(team)}/squad?format=${format}&months=${months}`),
 }

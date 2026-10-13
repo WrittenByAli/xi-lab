@@ -97,3 +97,25 @@ def test_live_empty():
     r = client.get("/live")
     assert r.status_code == 200
     assert isinstance(r.json(), list)
+
+
+def test_teams_list():
+    r = client.get("/teams?format=t20")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    if data:
+        assert "team" in data[0]
+        assert "recent_matches" in data[0]
+
+
+def test_teams_squad():
+    teams = client.get("/teams?format=t20").json()
+    if teams:
+        team_name = teams[0]["team"]
+        r = client.get(f"/teams/{team_name}/squad?format=t20")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["team"] == team_name
+        assert len(data["players"]) > 0
+        assert "bat_rating" in data["players"][0]

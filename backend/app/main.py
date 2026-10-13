@@ -16,7 +16,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.routers import compare, live, player, recommend, results, simulate
+from backend.app.routers import compare, live, player, recommend, results, simulate, teams
 
 app = FastAPI(
     title="XI-Lab",
@@ -37,6 +37,7 @@ app.include_router(compare.router, prefix="/compare", tags=["simulation"])
 app.include_router(player.router, prefix="/player", tags=["players"])
 app.include_router(live.router, prefix="/live", tags=["live"])
 app.include_router(results.router, prefix="/results", tags=["evaluation"])
+app.include_router(teams.router, prefix="/teams", tags=["teams"])
 
 
 @app.get("/health", tags=["ops"])
