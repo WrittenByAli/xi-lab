@@ -1,15 +1,4 @@
-"""
-XI-Lab FastAPI application.
-
-Endpoints (stubs — implemented as the ML pipeline is built):
-  POST /recommend   → best XI + tie set + batting order + bowling plan + swap matrix
-  POST /simulate    → win probability + score distributions for two XIs
-  POST /compare     → paired ΔWP with confidence interval
-  GET  /player/{id} → phase ratings + matchups + role + SHAP summary
-  GET  /live        → prediction log with results
-  GET  /results     → evaluation artifacts
-  GET  /health      → liveness check
-"""
+"""XI-Lab FastAPI application — context-aware cricket team selection engine."""
 
 from __future__ import annotations
 
@@ -21,7 +10,7 @@ from backend.app.routers import compare, live, player, recommend, results, simul
 app = FastAPI(
     title="XI-Lab",
     description="Context-aware cricket team selection engine",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 app.add_middleware(
