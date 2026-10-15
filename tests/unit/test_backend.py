@@ -119,3 +119,28 @@ def test_teams_squad():
         assert data["team"] == team_name
         assert len(data["players"]) > 0
         assert "bat_rating" in data["players"][0]
+
+
+def test_compare_basic():
+    squad = _make_squad(15)
+    team_a = squad[:11]
+    team_b = squad[1:12]
+    opponent = squad[:11]
+    r = client.post(
+        "/compare",
+        json={
+            "team1_a": team_a,
+            "team1_b": team_b,
+            "opponent": opponent,
+            "format": "t20",
+            "n_sims": 100,
+        },
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert "delta_wp" in data
+    assert "ci_lower" in data
+    assert "ci_upper" in data
+    assert "team_a_wp" in data
+    assert "team_b_wp" in data
+    assert data["ci_lower"] <= data["delta_wp"] <= data["ci_upper"]

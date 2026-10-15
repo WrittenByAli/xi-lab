@@ -127,6 +127,14 @@ export interface TeamSquad {
   players: SquadPlayer[]
 }
 
+export interface CompareResponse {
+  delta_wp: number
+  ci_lower: number
+  ci_upper: number
+  team_a_wp: number
+  team_b_wp: number
+}
+
 export const api = {
   health: () => request<{ status: string; version: string }>('/health'),
 
@@ -157,4 +165,10 @@ export const api = {
 
   getSquad: (team: string, format = 't20', months = 12) =>
     request<TeamSquad>(`/teams/${encodeURIComponent(team)}/squad?format=${format}&months=${months}`),
+
+  compare: (teamA: PlayerIn[], teamB: PlayerIn[], opponent: PlayerIn[], format = 't20', nSims = 10000) =>
+    request<CompareResponse>('/compare', {
+      method: 'POST',
+      body: JSON.stringify({ team1_a: teamA, team1_b: teamB, opponent, format, n_sims: nSims }),
+    }),
 }

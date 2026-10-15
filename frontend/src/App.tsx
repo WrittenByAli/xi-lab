@@ -6,6 +6,7 @@ import SquadBuilder from './pages/SquadBuilder'
 import Simulator from './pages/Simulator'
 import Players from './pages/Players'
 import Results from './pages/Results'
+import Compare from './pages/Compare'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="squad" element={<SquadBuilder />} />
             <Route path="simulate" element={<Simulator />} />
             <Route path="players" element={<Players />} />
+            <Route path="compare" element={<Compare />} />
             <Route path="results" element={<Results />} />
           </Route>
         </Routes>

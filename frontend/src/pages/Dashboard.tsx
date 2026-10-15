@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Users, Swords, UserSearch, BarChart3, ArrowRight, CircleCheck, CircleAlert } from 'lucide-react'
+import { Users, Swords, UserSearch, BarChart3, ArrowRight, CircleCheck, CircleAlert, GitCompareArrows } from 'lucide-react'
 import Card, { CardTitle } from '../components/ui/Card'
 import PageHeader from '../components/ui/PageHeader'
 import Skeleton from '../components/ui/Skeleton'
@@ -11,6 +11,7 @@ import { api } from '../lib/api'
 const quickLinks = [
   { to: '/squad', icon: Users, label: 'Build XI', desc: 'Select your best XI from a squad' },
   { to: '/simulate', icon: Swords, label: 'Simulate', desc: 'Head-to-head match simulation' },
+  { to: '/compare', icon: GitCompareArrows, label: 'Compare', desc: 'Compare XI variants head-to-head' },
   { to: '/players', icon: UserSearch, label: 'Players', desc: 'Explore player profiles & ratings' },
   { to: '/results', icon: BarChart3, label: 'Results', desc: 'Model performance & calibration' },
 ]

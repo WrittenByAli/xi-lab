@@ -51,9 +51,10 @@ formats:
     phases: [[0,9], [10,29], [30,39], [40,49]]
     phase_names: ["powerplay", "consolidation", "transition", "death"]
   test:
-    sessions_per_day: 3
-    days: 5
-    phases: ["morning", "afternoon", "evening"]
+    overs: 90
+    max_bowler_overs: 90
+    phases: [[0,10], [11,60], [61,89]]
+    phase_names: ["new_ball", "middle", "old_ball"]
 
 # ── Leakage tests ─────────────────────────────────────────────────────────────
 leakage:

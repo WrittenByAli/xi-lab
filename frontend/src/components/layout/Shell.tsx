@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { LayoutDashboard, Users, Swords, UserSearch, BarChart3, Activity } from 'lucide-react'
+import { LayoutDashboard, Users, Swords, UserSearch, BarChart3, Activity, GitCompareArrows } from 'lucide-react'
 import clsx from 'clsx'
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/squad', icon: Users, label: 'Squad Builder' },
   { to: '/simulate', icon: Swords, label: 'Simulator' },
+  { to: '/compare', icon: GitCompareArrows, label: 'Compare' },
   { to: '/players', icon: UserSearch, label: 'Players' },
   { to: '/results', icon: BarChart3, label: 'Results' },
 ]
