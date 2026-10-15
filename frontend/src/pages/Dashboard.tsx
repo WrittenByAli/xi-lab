@@ -19,6 +19,7 @@ const quickLinks = [
 export default function Dashboard() {
   const [t20Metrics, setT20Metrics] = useState<BacktestMetrics | null>(null)
   const [odiMetrics, setOdiMetrics] = useState<BacktestMetrics | null>(null)
+  const [testMetrics, setTestMetrics] = useState<BacktestMetrics | null>(null)
   const [health, setHealth] = useState<{ status: string; version: string } | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -26,10 +27,12 @@ export default function Dashboard() {
     Promise.allSettled([
       api.getResults('t20'),
       api.getResults('odi'),
+      api.getResults('test'),
       api.health(),
-    ]).then(([t20, odi, h]) => {
+    ]).then(([t20, odi, test, h]) => {
       if (t20.status === 'fulfilled') setT20Metrics(t20.value)
       if (odi.status === 'fulfilled') setOdiMetrics(odi.value)
+      if (test.status === 'fulfilled') setTestMetrics(test.value)
       if (h.status === 'fulfilled') setHealth(h.value)
       setLoading(false)
     })
@@ -65,16 +68,17 @@ export default function Dashboard() {
 
         {/* Format comparison cards */}
         {loading ? (
-          <div className="grid grid-cols-2 gap-4">
-            {[0, 1].map((i) => (
+          <div className="grid grid-cols-3 gap-4">
+            {[0, 1, 2].map((i) => (
               <Skeleton key={i} className="h-44 rounded-xl" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             {[
               { label: 'T20', metrics: t20Metrics, accent: 'text-accent' },
               { label: 'ODI', metrics: odiMetrics, accent: 'text-role-bowl' },
+              { label: 'Test', metrics: testMetrics, accent: 'text-role-bat' },
             ].map(({ label, metrics, accent }, i) => (
               <motion.div
                 key={label}
