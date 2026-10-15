@@ -17,7 +17,7 @@ import Skeleton from '../components/ui/Skeleton'
 import { api } from '../lib/api'
 import type { BacktestMetrics } from '../lib/api'
 
-const FORMATS = ['t20', 'odi'] as const
+const FORMATS = ['t20', 'odi', 'test'] as const
 
 export default function Results() {
   const [format, setFormat] = useState<string>('t20')

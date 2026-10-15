@@ -167,7 +167,7 @@ function TeamPanel({ label, color, team, format, onAdd, onRemove, onLoadTeam }: 
   )
 }
 
-const FORMATS = ['t20', 'odi'] as const
+const FORMATS = ['t20', 'odi', 'test'] as const
 
 export default function Compare() {
   const [teamA, setTeamA] = useState<PlayerIn[]>([])

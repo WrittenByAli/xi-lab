@@ -54,7 +54,7 @@ export default function Players() {
         description="Search and explore player profiles, ratings, and phase breakdowns"
       >
         <div className="flex bg-surface-2 rounded-lg p-0.5">
-          {(['t20', 'odi'] as const).map((f) => (
+          {(['t20', 'odi', 'test'] as const).map((f) => (
             <button
               key={f}
               onClick={() => switchFormat(f)}

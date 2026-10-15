@@ -39,6 +39,8 @@ SITUATION_FEATURES = [
     "rrr_before",
     "innings_no",
     "is_international",
+    "venue_id",
+    "toss_bat_first",
 ]
 
 BATTER_SNAPSHOT_FEATURES = [
@@ -65,6 +67,7 @@ BOWLER_SNAPSHOT_FEATURES = [
 CATEGORICAL_FEATURES = [
     "bat_hand",
     "bowl_type",
+    "venue_id",
 ]
 
 ALL_FEATURES = (
@@ -100,10 +103,16 @@ def asof_join_snapshots(
         Balls enriched with batter/bowler snapshot features and match metadata.
     """
     # Attach match date and metadata to each ball
-    match_cols = ["match_id", "date", "is_international"]
+    match_cols = ["match_id", "date", "is_international", "venue_id", "toss_decision"]
     available_match_cols = [c for c in match_cols if c in matches.columns]
     balls = balls.merge(matches[available_match_cols], on="match_id", how="left")
     balls["date"] = pd.to_datetime(balls["date"])
+
+    # Derive binary toss feature: did the batting team choose to bat first?
+    if "toss_decision" in balls.columns:
+        balls["toss_bat_first"] = (balls["toss_decision"] == "bat").astype(int)
+    else:
+        balls["toss_bat_first"] = 0
 
     # Ensure snapshot_month is datetime
     snaps = snapshots.copy()
