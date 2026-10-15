@@ -23,16 +23,29 @@ router = APIRouter()
 _DEFAULT_PROBS = np.array([0.35, 0.25, 0.08, 0.01, 0.12, 0.06, 0.08, 0.03, 0.02])
 
 
+def _norm_bat(raw: float) -> float:
+    """Normalize bat_rating to [0, 1]. Median ~51, elite ~100+."""
+    return float(np.clip((raw - 25) / 75, 0, 1))
+
+
+def _norm_bowl(raw: float) -> float:
+    """Normalize bowl_rating to [0, 1]. Values are negative; less negative = better."""
+    return float(np.clip((-raw - 10) / 40, 0, 1))
+
+
 def _player_to_cards(player) -> tuple[BattingCard, BowlingCard]:
+    br = _norm_bat(player.bat_rating)
+    wr = _norm_bowl(player.bowl_rating)
+
     bat_probs = _DEFAULT_PROBS.copy()
-    bat_probs[0] = max(0.05, 0.40 - player.bat_rating * 0.1)
-    bat_probs[4] = min(0.25, 0.08 + player.bat_rating * 0.05)
-    bat_probs[5] = min(0.15, 0.04 + player.bat_rating * 0.03)
+    bat_probs[0] = max(0.05, 0.40 - br * 0.1)
+    bat_probs[4] = min(0.25, 0.08 + br * 0.05)
+    bat_probs[5] = min(0.15, 0.04 + br * 0.03)
     bat_probs /= bat_probs.sum()
 
     bowl_probs = _DEFAULT_PROBS.copy()
-    bowl_probs[6] = min(0.20, 0.06 + player.bowl_rating * 0.04)
-    bowl_probs[0] = min(0.50, 0.30 + player.bowl_rating * 0.05)
+    bowl_probs[6] = min(0.20, 0.06 + wr * 0.04)
+    bowl_probs[0] = min(0.50, 0.30 + wr * 0.05)
     bowl_probs /= bowl_probs.sum()
 
     phases = {p: bat_probs for p in ["powerplay", "middle", "death"]}
