@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, Zap, GripVertical, Users, ChevronDown, X, Search } from 'lucide-react'
+import { Plus, Trash2, Zap, GripVertical, Users, ChevronDown, X, Search, ArrowRightLeft } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import Card, { CardTitle } from '../components/ui/Card'
 import Badge, { roleBadgeVariant, roleLabel } from '../components/ui/Badge'
@@ -39,7 +39,7 @@ function squadPlayerToPlayerIn(p: SquadPlayer): PlayerIn {
   }
 }
 
-const FORMATS = ['t20', 'odi'] as const
+const FORMATS = ['t20', 'odi', 'test'] as const
 
 export default function SquadBuilder() {
   const [squad, setSquad] = useState<PlayerIn[]>([])
@@ -359,6 +359,99 @@ export default function SquadBuilder() {
                   })}
                 </div>
               </Card>
+
+              {/* Swap matrix */}
+              {result.swap_matrix && Object.keys(result.swap_matrix).length > 0 && (
+                <Card>
+                  <div className="flex items-center gap-2 mb-3">
+                    <ArrowRightLeft className="w-3.5 h-3.5 text-accent" />
+                    <CardTitle>Swap Impact</CardTitle>
+                  </div>
+                  <p className="text-[11px] text-text-tertiary mb-3">
+                    Best bench-to-XI swaps by WP change
+                  </p>
+                  <div className="space-y-1">
+                    {(() => {
+                      const swaps: { benchId: string; xiId: string; delta: number }[] = []
+                      for (const [benchId, targets] of Object.entries(result.swap_matrix)) {
+                        for (const [xiId, delta] of Object.entries(targets)) {
+                          swaps.push({ benchId, xiId, delta })
+                        }
+                      }
+                      swaps.sort((a, b) => b.delta - a.delta)
+                      const topSwaps = swaps.slice(0, 8)
+                      if (topSwaps.length === 0) return null
+
+                      const maxAbs = Math.max(...topSwaps.map(s => Math.abs(s.delta)), 0.001)
+                      const getName = (id: string) => {
+                        const p = squad.find(s => s.player_id === id) ?? result.xi.find(x => x.player_id === id)
+                        return p?.name ?? id
+                      }
+
+                      return topSwaps.map((s, i) => {
+                        const isPositive = s.delta > 0
+                        return (
+                          <motion.div
+                            key={`${s.benchId}-${s.xiId}`}
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                            className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-surface-2/50"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 text-[11px]">
+                                <span className="text-green-400 truncate font-medium">{getName(s.benchId)}</span>
+                                <span className="text-text-tertiary shrink-0">for</span>
+                                <span className="text-red-400 truncate">{getName(s.xiId)}</span>
+                              </div>
+                            </div>
+                            <div className="w-14 h-1.5 rounded-full bg-surface-3 overflow-hidden shrink-0">
+                              <div
+                                className={`h-full rounded-full ${isPositive ? 'bg-green-500/60' : 'bg-red-500/40'}`}
+                                style={{ width: `${(Math.abs(s.delta) / maxAbs) * 100}%` }}
+                              />
+                            </div>
+                            <span className={`stat text-[11px] w-12 text-right shrink-0 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                              {isPositive ? '+' : ''}{s.delta.toFixed(3)}
+                            </span>
+                          </motion.div>
+                        )
+                      })
+                    })()}
+                  </div>
+                </Card>
+              )}
+
+              {/* Tie set — near-optimal alternatives */}
+              {result.tie_set && result.tie_set.length > 0 && (
+                <Card>
+                  <CardTitle>Near-Optimal Alternatives</CardTitle>
+                  <p className="text-[11px] text-text-tertiary mt-1 mb-3">
+                    XIs within the statistical confidence interval
+                  </p>
+                  <div className="space-y-1.5">
+                    {result.tie_set.slice(0, 5).map((alt, i) => {
+                      const different = alt.filter(id => !result.xi.some(x => x.player_id === id))
+                      const getName = (id: string) => {
+                        const p = squad.find(s => s.player_id === id)
+                        return p?.name ?? id
+                      }
+                      return (
+                        <div key={i} className="px-2 py-1.5 rounded-md bg-surface-2/40 text-[11px]">
+                          <span className="text-text-tertiary">Alt {i + 1}: </span>
+                          {different.length === 0 ? (
+                            <span className="text-text-secondary">Same as selected XI</span>
+                          ) : (
+                            <span className="text-accent">
+                              +{different.map(getName).join(', ')}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </Card>
+              )}
             </motion.div>
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-center">

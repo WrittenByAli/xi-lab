@@ -39,7 +39,6 @@ SITUATION_FEATURES = [
     "rrr_before",
     "innings_no",
     "is_international",
-    "venue_id",
     "toss_bat_first",
 ]
 
@@ -245,7 +244,13 @@ def train_model(
         "verbose": -1,
     }
 
-    train_ds = lgb.Dataset(train[features], label=train[target_col])
+    cat_cols = [f for f in CATEGORICAL_FEATURES if f in features]
+    train_ds = lgb.Dataset(
+        train[features],
+        label=train[target_col],
+        categorical_feature=cat_cols,
+        free_raw_data=False,
+    )
     val_ds = lgb.Dataset(val[features], label=val[target_col], reference=train_ds)
 
     callbacks: list = [
