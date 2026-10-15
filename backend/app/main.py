@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,12 +12,13 @@ from backend.app.routers import compare, live, player, recommend, results, simul
 app = FastAPI(
     title="XI-Lab",
     description="Context-aware cricket team selection engine",
-    version="0.2.0",
+    version="0.3.0",
 )
 
+_cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten in production
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

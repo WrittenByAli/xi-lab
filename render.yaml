@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: xi-lab-api
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHONPATH
+        value: /app
+    scaling:
+      minInstances: 0
+      maxInstances: 1
+
+  - type: web
+    name: xi-lab-frontend
+    runtime: docker
+    dockerfilePath: frontend/Dockerfile
+    dockerContext: frontend
+    healthCheckPath: /
