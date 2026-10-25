@@ -48,7 +48,10 @@ class MatchContext:
     batting_order: list[BattingCard]
     bowling_attack: list[BowlingCard]
     total_overs: int = 20
-    target: int | None = None  # None for 1st innings
+    target: int | np.ndarray | None = None  # None for 1st innings; a (n_sims,)
+    # array lets a chase target vary per simulation (each sim chases whatever
+    # the 1st innings scored in that same sim) without an n_sims-times Python
+    # loop calling simulate_innings one simulation at a time.
     phases: list[tuple[int, int]] = field(default_factory=lambda: [(0, 5), (6, 14), (15, 19)])
     phase_names: list[str] = field(default_factory=lambda: ["powerplay", "middle", "death"])
 
@@ -125,6 +128,9 @@ def simulate_innings(
     active = np.ones(n_sims, dtype=bool)
 
     chased = np.zeros(n_sims, dtype=bool) if ctx.target is not None else None
+    target_per_sim = (
+        ctx.target if isinstance(ctx.target, np.ndarray) else None
+    )  # None means "use the scalar ctx.target directly" (or no target at all)
 
     batter_idx = np.zeros(n_sims, dtype=np.int32)
     max_batters = len(ctx.batting_order)
@@ -183,9 +189,11 @@ def simulate_innings(
             if legal_balls[s_idx] >= max_legal_balls:
                 active[s_idx] = False
 
-            if ctx.target is not None and chased is not None and scores[s_idx] >= ctx.target:
-                chased[s_idx] = True
-                active[s_idx] = False
+            if ctx.target is not None and chased is not None:
+                sim_target = target_per_sim[s_idx] if target_per_sim is not None else ctx.target
+                if scores[s_idx] >= sim_target:
+                    chased[s_idx] = True
+                    active[s_idx] = False
 
     return SimResult(
         scores=scores,
@@ -211,34 +219,28 @@ def simulate_match(
 
     inn1 = simulate_innings(team1_ctx, n_sims=n_sims, rng=rng)
 
-    win1 = 0
-    win2 = 0
-    ties = 0
+    # Each sim's target is whatever that same sim's 1st innings scored, so the
+    # whole chase batch runs as ONE call with a per-sim target array — not
+    # n_sims individual single-simulation calls (same total ball-processing
+    # work either way, but this drops the n_sims-times Python/object-creation
+    # overhead of a fresh MatchContext + rng + simulate_innings() call each).
+    targets = inn1.scores.astype(np.int64) + 1
+    ctx2 = MatchContext(
+        batting_order=team2_batting,
+        bowling_attack=team1_ctx.bowling_attack,
+        total_overs=team1_ctx.total_overs,
+        target=targets,
+        phases=team1_ctx.phases,
+        phase_names=team1_ctx.phase_names,
+    )
+    rng2 = np.random.default_rng(crn_seed + 1)
+    inn2 = simulate_innings(ctx2, n_sims=n_sims, rng=rng2)
+    team2_scores = inn2.scores
+    team2_wickets = inn2.wickets
 
-    team2_scores = np.zeros(n_sims, dtype=np.int32)
-    team2_wickets = np.zeros(n_sims, dtype=np.int32)
-
-    for sim in range(n_sims):
-        target = inn1.scores[sim] + 1
-        ctx2 = MatchContext(
-            batting_order=team2_batting,
-            bowling_attack=team1_ctx.bowling_attack,
-            total_overs=team1_ctx.total_overs,
-            target=target,
-            phases=team1_ctx.phases,
-            phase_names=team1_ctx.phase_names,
-        )
-        rng2 = np.random.default_rng(crn_seed + sim + 1)
-        r2 = simulate_innings(ctx2, n_sims=1, rng=rng2)
-        team2_scores[sim] = r2.scores[0]
-        team2_wickets[sim] = r2.wickets[0]
-
-        if r2.scores[0] >= target:
-            win2 += 1
-        elif r2.scores[0] < target - 1:
-            win1 += 1
-        else:
-            ties += 1
+    win2 = int(np.sum(team2_scores >= targets))
+    win1 = int(np.sum(team2_scores < targets - 1))
+    ties = n_sims - win1 - win2
 
     return {
         "team1_win_prob": win1 / n_sims,

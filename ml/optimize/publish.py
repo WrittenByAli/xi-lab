@@ -34,10 +34,10 @@ def _load_player_meta() -> dict:
     return {row["player_id"]: row.to_dict() for _, row in meta.iterrows()}
 
 
-def _load_ratings() -> dict:
+def _load_ratings(gender: str = "male") -> dict:
     import pandas as pd
 
-    path = ROOT / "data" / "processed" / "models" / "ability" / "ratings.parquet"
+    path = ROOT / "data" / "processed" / "models" / "ability" / gender / "ratings.parquet"
     if not path.exists():
         return {}
     df = pd.read_parquet(path)
@@ -60,6 +60,7 @@ def main():
     parser.add_argument("--opponent", required=True)
     parser.add_argument("--venue", required=True)
     parser.add_argument("--format", required=True)
+    parser.add_argument("--gender", choices=["male", "female"], default="male")
     parser.add_argument("--date", required=True)
     parser.add_argument("--squad", required=True)
     parser.add_argument("--out", required=True)
@@ -67,7 +68,7 @@ def main():
 
     squad_ids = [s.strip() for s in args.squad.split(",")]
     meta = _load_player_meta()
-    ratings = _load_ratings()
+    ratings = _load_ratings(args.gender)
 
     squad = []
     for pid in squad_ids:
@@ -94,6 +95,7 @@ def main():
         "opponent": args.opponent,
         "venue": args.venue,
         "format": args.format,
+        "gender": args.gender,
         "match_date": args.date,
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "model_hash": _model_hash(),

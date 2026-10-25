@@ -46,19 +46,32 @@ parse:
 	python ml/ingest/parse.py
 
 # ── Pipeline stages ──────────────────────────────────────────────────────────
+# Each stage runs for every (format, gender) combination with real data.
+# Test-format gets ability ratings only for both genders (mirrors existing
+# men's scope — no ball/policy/backtest model for test, and women's test data
+# is only 24 matches, too sparse for the date-based train/val/test split).
 features:
 	python ml/features/snapshots.py
 
 train-ability:
-	python -m ml.models.ability.train --format t20
-	python -m ml.models.ability.train --format odi
+	python -m ml.models.ability.train --format t20 --gender male
+	python -m ml.models.ability.train --format odi --gender male
+	python -m ml.models.ability.train --format test --gender male
+	python -m ml.models.ability.train --format t20 --gender female
+	python -m ml.models.ability.train --format odi --gender female
+	python -m ml.models.ability.train --format test --gender female
 
 train-ball:
-	python -m ml.models.ball.train --format t20
-	python -m ml.models.ball.train --format odi
+	python -m ml.models.ball.train --format t20 --gender male
+	python -m ml.models.ball.train --format odi --gender male
+	python -m ml.models.ball.train --format t20 --gender female
+	python -m ml.models.ball.train --format odi --gender female
 
 train-policies:
-	python -m ml.models.policies.train
+	python -m ml.models.policies.train --format t20 --gender male
+	python -m ml.models.policies.train --format odi --gender male
+	python -m ml.models.policies.train --format t20 --gender female
+	python -m ml.models.policies.train --format odi --gender female
 
 train: train-ability train-ball train-policies
 
@@ -66,8 +79,10 @@ simulate-validate:
 	python ml/simulate/validate.py
 
 backtest:
-	python -m ml.evaluate.backtest --format t20
-	python -m ml.evaluate.backtest --format odi
+	python -m ml.evaluate.backtest --format t20 --gender male
+	python -m ml.evaluate.backtest --format odi --gender male
+	python -m ml.evaluate.backtest --format t20 --gender female
+	python -m ml.evaluate.backtest --format odi --gender female
 
 # ── Serving ───────────────────────────────────────────────────────────────────
 serve:

@@ -7,6 +7,7 @@ import Simulator from './pages/Simulator'
 import Players from './pages/Players'
 import Results from './pages/Results'
 import Compare from './pages/Compare'
+import { GenderProvider } from './lib/genderContext'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,18 +18,20 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<Shell />}>
-            <Route index element={<Dashboard />} />
-            <Route path="squad" element={<SquadBuilder />} />
-            <Route path="simulate" element={<Simulator />} />
-            <Route path="players" element={<Players />} />
-            <Route path="compare" element={<Compare />} />
-            <Route path="results" element={<Results />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <GenderProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<Shell />}>
+              <Route index element={<Dashboard />} />
+              <Route path="squad" element={<SquadBuilder />} />
+              <Route path="simulate" element={<Simulator />} />
+              <Route path="players" element={<Players />} />
+              <Route path="compare" element={<Compare />} />
+              <Route path="results" element={<Results />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </GenderProvider>
     </QueryClientProvider>
   )
 }

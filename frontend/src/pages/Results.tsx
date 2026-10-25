@@ -16,10 +16,12 @@ import StatCard from '../components/ui/StatCard'
 import Skeleton from '../components/ui/Skeleton'
 import { api } from '../lib/api'
 import type { BacktestMetrics } from '../lib/api'
+import { useGender } from '../lib/genderContext'
 
 const FORMATS = ['t20', 'odi', 'test'] as const
 
 export default function Results() {
+  const { gender } = useGender()
   const [format, setFormat] = useState<string>('t20')
   const [metrics, setMetrics] = useState<BacktestMetrics | null>(null)
   const [allMetrics, setAllMetrics] = useState<Record<string, any> | null>(null)
@@ -27,12 +29,12 @@ export default function Results() {
 
   useEffect(() => {
     setLoading(true)
-    Promise.allSettled([api.getResults(format), api.getAllMetrics()]).then(([m, a]) => {
+    Promise.allSettled([api.getResults(format, gender), api.getAllMetrics(format, gender)]).then(([m, a]) => {
       if (m.status === 'fulfilled') setMetrics(m.value)
       if (a.status === 'fulfilled') setAllMetrics(a.value)
       setLoading(false)
     })
-  }, [format])
+  }, [format, gender])
 
   const calibrationData = metrics?.calibration?.map((c) => ({
     predicted: +(c.predicted_mean * 100).toFixed(1),

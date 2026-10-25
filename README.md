@@ -1,10 +1,11 @@
 # XI-Lab
 
-**Context-aware cricket team selection engine for all international teams.**
+**Context-aware cricket team selection engine, for men's and women's cricket.**
 
-Given a venue, opponent, toss result and available squad, XI-Lab recommends
-the XI with the highest simulated win probability — for any team, in T20I,
-ODI, and Test cricket.
+Given a gender, ground, opponent, toss decision, pitch condition, and
+available squad, XI-Lab recommends the XI with the highest simulated win
+probability — for any team, in T20I, ODI, and Test cricket. Squads can be
+built from a team's current roster or its all-time player pool.
 
 > Data: [Cricsheet](https://cricsheet.org) (ODC-BY licence)
 
@@ -14,22 +15,22 @@ ODI, and Test cricket.
 
 | Component | Status |
 |-----------|--------|
-| Data pipeline (Cricsheet parse/normalize) | Done |
-| Player coverage (6,303 players, 98.9% T20) | Done |
-| Monthly as-of snapshots (leakage-proof) | Done |
-| Ability model (Empirical Bayes shrinkage) | Done |
-| Ball-outcome model (LightGBM 9-class) | Done |
-| Policy models (batting order + bowling plan) | Done |
-| Monte Carlo simulator (vectorized, CRN) | Done |
-| ILP optimizer + racing search | Done |
-| Backtest evaluator (calibrated logistic) | Done |
-| FastAPI backend (6 routers, 11 endpoints) | Done |
+| Data pipeline (Cricsheet parse/normalize, men's + women's) | Done |
+| Player coverage (6,303+ players, 98.9% T20) | Done |
+| Monthly as-of snapshots (leakage-proof, per gender) | Done |
+| Ability model (Empirical Bayes shrinkage, per gender) | Done |
+| Ball-outcome model (LightGBM 9-class, venue/toss-aware, per gender) | Done |
+| Policy models (batting order + bowling plan, per gender) | Done |
+| Monte Carlo simulator (CRN, ground/pitch/toss-aware) | Done |
+| ILP optimizer + racing search (opponent-aware when selected) | Done |
+| Backtest evaluator (calibrated logistic, per gender) | Done |
+| FastAPI backend (7 routers, 16 endpoints) | Done |
 | CI/CD (GitHub Actions, Docker Compose) | Done |
-| T20 format (Brier 0.236, accuracy 59.5%) | Done |
-| ODI format (Brier 0.257, accuracy 55.0%) | Done |
-| Test format | Planned |
-| React frontend (dark theme, 5 pages) | Done |
-| 112 tests passing | Done |
+| T20 format — men's & women's | Done |
+| ODI format — men's & women's | Done |
+| Test format | Ability ratings only (men's & women's) |
+| React frontend (dark theme, 6 pages, men's/women's toggle) | Done |
+| Tests passing | Done |
 
 ---
 

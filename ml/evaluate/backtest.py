@@ -24,8 +24,8 @@ ROOT = Path(__file__).resolve().parents[2]
 PARAMS = yaml.safe_load((ROOT / "params.yaml").read_text())
 
 
-def _load_ratings() -> pd.DataFrame | None:
-    path = ROOT / "data" / "processed" / "models" / "ability" / "ratings.parquet"
+def _load_ratings(gender: str = "male") -> pd.DataFrame | None:
+    path = ROOT / "data" / "processed" / "models" / "ability" / gender / "ratings.parquet"
     if path.exists():
         return pd.read_parquet(path)
     return None
@@ -153,15 +153,16 @@ def _predict_logistic(x: np.ndarray, w: np.ndarray, b: float) -> np.ndarray:
     return 1 / (1 + np.exp(-np.clip(z, -30, 30)))
 
 
-def backtest(fmt: str = "t20") -> dict:
-    print(f"[{fmt}] Loading data...")
-    matches = pd.read_parquet(ROOT / "data" / "interim" / fmt / "matches.parquet")
-    lineups = pd.read_parquet(ROOT / "data" / "interim" / fmt / "lineups.parquet")
+def backtest(fmt: str = "t20", gender: str = "male") -> dict:
+    print(f"[{fmt}/{gender}] Loading data...")
+    base = ROOT / "data" / "interim" / fmt / gender
+    matches = pd.read_parquet(base / "matches.parquet")
+    lineups = pd.read_parquet(base / "lineups.parquet")
     matches["date"] = pd.to_datetime(matches["date"])
 
-    ratings = _load_ratings()
+    ratings = _load_ratings(gender)
     if ratings is None:
-        return {"format": fmt, "test_matches": 0, "error": "no_ratings_available"}
+        return {"format": fmt, "gender": gender, "test_matches": 0, "error": "no_ratings_available"}
 
     splits = PARAMS["splits"]
     val_start = splits["val_start"]
@@ -175,7 +176,7 @@ def backtest(fmt: str = "t20") -> dict:
     test_df = _build_dataset(matches, lineups, ratings, test_start, None, "test")
 
     if val_df.empty or test_df.empty:
-        return {"format": fmt, "test_matches": 0, "error": "insufficient_data"}
+        return {"format": fmt, "gender": gender, "test_matches": 0, "error": "insufficient_data"}
 
     feature_cols = ["bat_diff", "bat_top3_diff", "bowl_diff", "bowl_top3_diff"]
     x_val = val_df[feature_cols].values.astype(float)
@@ -234,6 +235,7 @@ def backtest(fmt: str = "t20") -> dict:
 
     metrics = {
         "format": fmt,
+        "gender": gender,
         "test_matches": len(test_df),
         "val_matches": len(val_df),
         "test_period": f"{test_start} onwards",
@@ -260,14 +262,18 @@ def backtest(fmt: str = "t20") -> dict:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--format", choices=["t20", "odi", "test"], default="t20")
+    parser.add_argument("--gender", choices=["male", "female"], default="male")
     args = parser.parse_args()
 
-    metrics = backtest(args.format)
+    metrics = backtest(args.format, args.gender)
 
     out_dir = ROOT / "data" / "processed" / "metrics"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"backtest_{args.format}.json"
+    out_path = out_dir / f"backtest_{args.format}_{args.gender}.json"
     out_path.write_text(json.dumps(metrics, indent=2))
+    # Back-compat: unqualified filename used by results.py's fallback lookup.
+    if args.gender == "male":
+        (out_dir / f"backtest_{args.format}.json").write_text(json.dumps(metrics, indent=2))
     print(f"\nMetrics written to {out_path}")
 
 

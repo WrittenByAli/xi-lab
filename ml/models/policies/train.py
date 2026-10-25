@@ -7,16 +7,18 @@ These models learn from historical match data:
   2. BowlingPlanPolicy: predicts over allocation for each bowler
      based on phase economy, wicket-taking ability, match context
 
-Output: data/processed/models/policies/
+Output: data/processed/models/policies/{format}/{gender}/
   - batting_order_model.json (position preference weights)
   - bowling_plan_model.json (over allocation weights)
 
 Usage:
     python ml/models/policies/train.py
+    python ml/models/policies/train.py --format odi --gender female
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -27,10 +29,11 @@ ROOT = Path(__file__).resolve().parents[3]
 PARAMS = yaml.safe_load((ROOT / "params.yaml").read_text())
 
 
-def _load_data():
-    balls = pd.read_parquet(ROOT / "data" / "interim" / "t20" / "balls.parquet")
-    matches = pd.read_parquet(ROOT / "data" / "interim" / "t20" / "matches.parquet")
-    lineups = pd.read_parquet(ROOT / "data" / "interim" / "t20" / "lineups.parquet")
+def _load_data(fmt: str, gender: str):
+    base = ROOT / "data" / "interim" / fmt / gender
+    balls = pd.read_parquet(base / "balls.parquet")
+    matches = pd.read_parquet(base / "matches.parquet")
+    lineups = pd.read_parquet(base / "lineups.parquet")
     matches["date"] = pd.to_datetime(matches["date"])
     return balls, matches, lineups
 
@@ -111,6 +114,7 @@ def train_bowling_plan_policy(
     matches: pd.DataFrame,
     lineups: pd.DataFrame,
     train_end: str,
+    fmt: str,
 ) -> dict:
     """
     Learn bowling allocation patterns from historical data.
@@ -126,12 +130,15 @@ def train_bowling_plan_policy(
 
     b_train = balls[balls["match_id"].isin(train_matches) & balls["is_legal"]]
 
+    fmt_params = PARAMS["formats"].get(fmt, PARAMS["formats"]["t20"])
+    phase_ranges = fmt_params.get("phases", [[0, 5], [6, 15], [16, 19]])
+    phase_names = fmt_params.get("phase_names", ["powerplay", "middle", "death"])
+
     def _phase(over):
-        if over < 6:
-            return "powerplay"
-        if over < 15:
-            return "middle"
-        return "death"
+        for (lo, hi), name in zip(phase_ranges, phase_names, strict=False):
+            if lo <= over <= hi:
+                return name
+        return phase_names[-1]
 
     b_train = b_train.assign(phase=b_train["over"].map(_phase))
 
@@ -176,12 +183,18 @@ def train_bowling_plan_policy(
 
 
 def main():
-    print("Loading data...")
-    balls, matches, lineups = _load_data()
+    parser = argparse.ArgumentParser(description="Train batting-order/bowling-plan policies")
+    parser.add_argument("--format", default="t20", choices=["t20", "odi", "test"])
+    parser.add_argument("--gender", default="male", choices=["male", "female"])
+    args = parser.parse_args()
+    fmt, gender = args.format, args.gender
+
+    print(f"[{fmt}/{gender}] Loading data...")
+    balls, matches, lineups = _load_data(fmt, gender)
 
     train_end = PARAMS["splits"]["train_end"]
 
-    out_dir = ROOT / "data" / "processed" / "models" / "policies"
+    out_dir = ROOT / "data" / "processed" / "models" / "policies" / fmt / gender
     out_dir.mkdir(parents=True, exist_ok=True)
     metrics_dir = ROOT / "data" / "processed" / "metrics"
     metrics_dir.mkdir(parents=True, exist_ok=True)
@@ -192,11 +205,13 @@ def main():
     print(f"  Trained on {bat_policy['train_matches']} matches")
 
     print("Training bowling plan policy...")
-    bowl_policy = train_bowling_plan_policy(balls, matches, lineups, train_end)
+    bowl_policy = train_bowling_plan_policy(balls, matches, lineups, train_end, fmt)
     (out_dir / "bowling_plan_model.json").write_text(json.dumps(bowl_policy, indent=2))
     print(f"  Trained on {bowl_policy['train_matches']} matches")
 
     metrics = {
+        "format": fmt,
+        "gender": gender,
         "batting_order": {
             "train_matches": bat_policy["train_matches"],
             "positions_covered": len(bat_policy.get("position_sr", [])),
@@ -206,8 +221,10 @@ def main():
             "phases": list(bowl_policy.get("phase_averages", {}).keys()),
         },
     }
+    metrics_path = metrics_dir / f"policies_{fmt}_{gender}.json"
+    metrics_path.write_text(json.dumps(metrics, indent=2))
     (metrics_dir / "policies.json").write_text(json.dumps(metrics, indent=2))
-    print(f"Metrics written to {metrics_dir / 'policies.json'}")
+    print(f"Metrics written to {metrics_path}")
 
 
 if __name__ == "__main__":

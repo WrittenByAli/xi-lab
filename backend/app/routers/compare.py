@@ -3,45 +3,15 @@
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 from fastapi import APIRouter
 
 from backend.app.schemas.models import CompareRequest, CompareResponse
-from ml.simulate.engine import (
-    BattingCard,
-    BowlingCard,
-    MatchContext,
-    simulate_innings,
-)
+from backend.app.services.selection import build_player_feature_row, format_config
+from ml.simulate.cards import CardContext, build_cards
+from ml.simulate.engine import MatchContext, simulate_innings
 
 router = APIRouter()
-
-_DEFAULT_PROBS = np.array([0.35, 0.25, 0.08, 0.01, 0.12, 0.06, 0.08, 0.03, 0.02])
-
-
-def _norm_bat(raw: float) -> float:
-    return float(np.clip((raw - 25) / 75, 0, 1))
-
-
-def _norm_bowl(raw: float) -> float:
-    return float(np.clip((-raw - 10) / 40, 0, 1))
-
-
-def _make_cards(player):
-    br = _norm_bat(player.bat_rating)
-    wr = _norm_bowl(player.bowl_rating)
-    bat_probs = _DEFAULT_PROBS.copy()
-    bat_probs[0] = max(0.05, 0.40 - br * 0.1)
-    bat_probs[4] = min(0.25, 0.08 + br * 0.05)
-    bat_probs /= bat_probs.sum()
-    bowl_probs = _DEFAULT_PROBS.copy()
-    bowl_probs[6] = min(0.20, 0.06 + wr * 0.04)
-    bowl_probs /= bowl_probs.sum()
-    phases = {p: bat_probs for p in ["powerplay", "middle", "death"]}
-    bowl_phases = {p: bowl_probs for p in ["powerplay", "middle", "death"]}
-    return (
-        BattingCard(player_id=player.player_id, probs_by_phase=phases),
-        BowlingCard(player_id=player.player_id, probs_by_phase=bowl_phases),
-    )
 
 
 def _quick_wp(team_bat, opp_bowl, n_sims, seed):
@@ -56,12 +26,31 @@ def compare(req: CompareRequest):
     n = min(req.n_sims, 20000)
     seed = 42
 
-    a_bat = [_make_cards(p)[0] for p in req.team1_a]
-    b_bat = [_make_cards(p)[0] for p in req.team1_b]
-    opp_bowl = [_make_cards(p)[1] for p in req.opponent]
+    fmt_cfg = format_config(req.format)
+    ctx = CardContext(
+        fmt=req.format,
+        gender=req.gender,
+        phase_names=fmt_cfg.get("phase_names", ["powerplay", "middle", "death"]),
+        venue_id=req.venue or "unknown",
+        pitch_condition=req.pitch_condition,
+        max_overs_per_bowler=fmt_cfg.get("max_bowler_overs", 4),
+    )
 
-    score_a = _quick_wp(a_bat, opp_bowl, n, seed)
-    score_b = _quick_wp(b_bat, opp_bowl, n, seed)
+    opp_rows = [build_player_feature_row(p, req.format, req.gender) for p in req.opponent]
+    opp_avg = pd.DataFrame(opp_rows).mean(numeric_only=True).to_dict() if opp_rows else {}
+
+    a_rows = [build_player_feature_row(p, req.format, req.gender) for p in req.team1_a]
+    b_rows = [build_player_feature_row(p, req.format, req.gender) for p in req.team1_b]
+    a_avg = pd.DataFrame(a_rows).mean(numeric_only=True).to_dict() if a_rows else {}
+    b_avg = pd.DataFrame(b_rows).mean(numeric_only=True).to_dict() if b_rows else {}
+
+    a_bat = [build_cards(row, opp_avg, ctx)[0] for row in a_rows]
+    b_bat = [build_cards(row, opp_avg, ctx)[0] for row in b_rows]
+    opp_bowl_a = [build_cards(row, a_avg, ctx)[1] for row in opp_rows]
+    opp_bowl_b = [build_cards(row, b_avg, ctx)[1] for row in opp_rows]
+
+    score_a = _quick_wp(a_bat, opp_bowl_a, n, seed)
+    score_b = _quick_wp(b_bat, opp_bowl_b, n, seed)
 
     diff = float(score_a - score_b)
     se = float(np.sqrt(score_a + score_b) / np.sqrt(n)) * 2

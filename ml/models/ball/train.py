@@ -331,18 +331,25 @@ def main():
         choices=["t20", "odi", "test"],
         help="Cricket format (default: t20)",
     )
+    parser.add_argument(
+        "--gender",
+        default="male",
+        choices=["male", "female"],
+        help="Gender (default: male)",
+    )
     args = parser.parse_args()
 
     fmt = args.format
+    gender = args.gender
     ball_cfg = PARAMS["ball_model"]
     split_cfg = PARAMS["splits"]
     outcome_classes = ball_cfg["outcome_classes"]
 
     # ── Load data ────────────────────────────────────────────────────────────
-    print(f"[{fmt}] Loading data...")
-    balls_path = ROOT / "data" / "interim" / fmt / "balls.parquet"
-    matches_path = ROOT / "data" / "interim" / fmt / "matches.parquet"
-    snapshots_path = ROOT / "data" / "processed" / "snapshots" / fmt / "snapshots.parquet"
+    print(f"[{fmt}/{gender}] Loading data...")
+    balls_path = ROOT / "data" / "interim" / fmt / gender / "balls.parquet"
+    matches_path = ROOT / "data" / "interim" / fmt / gender / "matches.parquet"
+    snapshots_path = ROOT / "data" / "processed" / "snapshots" / fmt / gender / "snapshots.parquet"
 
     balls = pd.read_parquet(balls_path)
     matches = pd.read_parquet(matches_path)
@@ -413,23 +420,34 @@ def main():
         )
 
     # ── Save model ───────────────────────────────────────────────────────────
+    # Scoped by (format, gender) — training another combination must not silently
+    # overwrite this one, and serving code needs to be able to tell them apart.
     model_dir = ROOT / "data" / "processed" / "models" / "ball"
     model_dir.mkdir(parents=True, exist_ok=True)
-    model_path = model_dir / "model.lgb"
+    model_path = model_dir / f"model_{fmt}_{gender}.lgb"
     model.save_model(str(model_path))
     print(f"Model saved to {model_path}")
 
     # ── Save metrics ─────────────────────────────────────────────────────────
     metrics_dir = ROOT / "data" / "processed" / "metrics"
     metrics_dir.mkdir(parents=True, exist_ok=True)
-    metrics_path = metrics_dir / "ball.json"
+    metrics_path = metrics_dir / f"ball_{fmt}_{gender}.json"
 
-    # Also store the label encoders mapping and feature list for reproducibility
+    # Store the label-encoder vocab and feature list alongside the model so
+    # serving code can reconstruct the exact same categorical encoding (incl.
+    # venue_id) at inference time — these were previously never persisted,
+    # which meant the trained model could never be loaded for serving.
+    metrics["format"] = fmt
+    metrics["gender"] = gender
     metrics["outcome_classes"] = outcome_classes
     metrics["features"] = ALL_FEATURES
+    metrics["categorical_features"] = [f for f in CATEGORICAL_FEATURES if f in ALL_FEATURES]
     metrics["encoders"] = {col: list(le.classes_) for col, le in encoders.items()}
 
     with open(metrics_path, "w") as f:
+        json.dump(metrics, f, indent=2)
+    # Also keep an unqualified "latest run" copy for simple default-lookups.
+    with open(metrics_dir / "ball.json", "w") as f:
         json.dump(metrics, f, indent=2)
     print(f"Metrics saved to {metrics_path}")
 

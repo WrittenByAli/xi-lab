@@ -22,8 +22,8 @@ INTERIM = ROOT / "data" / "interim"
 REFERENCE = ROOT / "data" / "reference"
 
 
-def run(fmt: str = "t20", top_n: int = 100) -> None:
-    balls_path = INTERIM / fmt / "balls.parquet"
+def run(fmt: str = "t20", gender: str = "male", top_n: int = 100) -> None:
+    balls_path = INTERIM / fmt / gender / "balls.parquet"
     meta_path = REFERENCE / "player_meta.csv"
 
     if not balls_path.exists():
@@ -50,7 +50,7 @@ def run(fmt: str = "t20", top_n: int = 100) -> None:
     covered_balls = involvement.loc[involvement["covered"], "total"].sum()
 
     print(f"\n{'=' * 60}")
-    print(f"  player_meta coverage report  ({fmt.upper()})")
+    print(f"  player_meta coverage report  ({fmt.upper()} / {gender})")
     print(f"{'=' * 60}")
     print(f"  Total players in data : {len(involvement):,}")
     print(f"  Covered in meta       : {involvement['covered'].sum():,}")
@@ -74,7 +74,7 @@ def run(fmt: str = "t20", top_n: int = 100) -> None:
         )
 
     # Also write to a file for easy reference
-    out = REFERENCE / f"coverage_missing_{fmt}.csv"
+    out = REFERENCE / f"coverage_missing_{fmt}_{gender}.csv"
     missing.reset_index().rename(columns={"index": "player_id"}).to_csv(out, index=False)
     print(f"\n  Full list written to: {out.relative_to(ROOT)}")
 
@@ -82,6 +82,7 @@ def run(fmt: str = "t20", top_n: int = 100) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="player_meta coverage report")
     parser.add_argument("--format", default="t20", choices=["t20", "odi", "test"])
+    parser.add_argument("--gender", default="male", choices=["male", "female"])
     parser.add_argument("--top", type=int, default=100)
     args = parser.parse_args()
-    run(fmt=args.format, top_n=args.top)
+    run(fmt=args.format, gender=args.gender, top_n=args.top)

@@ -6,8 +6,9 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Skeleton from '../components/ui/Skeleton'
+import { useGender } from '../lib/genderContext'
 import { api } from '../lib/api'
-import type { PlayerIn, PlayerSearchResult, CompareResponse, TeamSummary, SquadPlayer } from '../lib/api'
+import type { PlayerIn, PlayerSearchResult, CompareResponse, TeamSummary, SquadPlayer, Gender } from '../lib/api'
 
 function squadPlayerToPlayerIn(p: SquadPlayer): PlayerIn {
   return {
@@ -26,8 +27,8 @@ function makePlayerIn(p: PlayerSearchResult): PlayerIn {
   }
 }
 
-function TeamPanel({ label, color, team, format, onAdd, onRemove, onLoadTeam }: {
-  label: string; color: string; team: PlayerIn[]; format: string
+function TeamPanel({ label, color, team, format, gender, onAdd, onRemove, onLoadTeam }: {
+  label: string; color: string; team: PlayerIn[]; format: string; gender: Gender
   onAdd: (p: PlayerSearchResult) => void; onRemove: (id: string) => void
   onLoadTeam: (players: PlayerIn[]) => void
 }) {
@@ -41,11 +42,11 @@ function TeamPanel({ label, color, team, format, onAdd, onRemove, onLoadTeam }: 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
-    if (showPicker && teams.length === 0) {
+    if (showPicker) {
       setTeamsLoading(true)
-      api.listTeams(format, 80).then(setTeams).catch(() => {}).finally(() => setTeamsLoading(false))
+      api.listTeams(format, gender, 80).then(setTeams).catch(() => {}).finally(() => setTeamsLoading(false))
     }
-  }, [showPicker, format, teams.length])
+  }, [showPicker, format, gender])
 
   const search = useCallback((val: string) => {
     setQ(val)
@@ -62,7 +63,7 @@ function TeamPanel({ label, color, team, format, onAdd, onRemove, onLoadTeam }: 
   const loadSquad = async (teamName: string) => {
     setLoadingSquad(teamName)
     try {
-      const data = await api.getSquad(teamName, format)
+      const data = await api.getSquad(teamName, format, gender)
       onLoadTeam(data.players.slice(0, 11).map(squadPlayerToPlayerIn))
       setShowPicker(false)
     } catch (_) { /* */ }
@@ -170,6 +171,7 @@ function TeamPanel({ label, color, team, format, onAdd, onRemove, onLoadTeam }: 
 const FORMATS = ['t20', 'odi', 'test'] as const
 
 export default function Compare() {
+  const { gender } = useGender()
   const [teamA, setTeamA] = useState<PlayerIn[]>([])
   const [teamB, setTeamB] = useState<PlayerIn[]>([])
   const [opponent, setOpponent] = useState<PlayerIn[]>([])
@@ -177,13 +179,17 @@ export default function Compare() {
   const [result, setResult] = useState<CompareResponse | null>(null)
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    setTeamA([]); setTeamB([]); setOpponent([]); setResult(null)
+  }, [format, gender])
+
   const canCompare = teamA.length === 11 && teamB.length === 11 && opponent.length === 11
 
   const runCompare = async () => {
     if (!canCompare) return
     setLoading(true)
     try {
-      const r = await api.compare(teamA, teamB, opponent, format)
+      const r = await api.compare(teamA, teamB, opponent, format, gender)
       setResult(r)
     } catch (_) { /* */ }
     setLoading(false)
@@ -228,7 +234,7 @@ export default function Compare() {
         <div className="grid grid-cols-3 gap-4">
           <Card padding="md">
             <TeamPanel
-              label="XI Variant A" color="#e5a84b" team={teamA} format={format}
+              label="XI Variant A" color="#e5a84b" team={teamA} format={format} gender={gender}
               onAdd={(p) => teamA.length < 11 && setTeamA(prev => [...prev, makePlayerIn(p)])}
               onRemove={(id) => setTeamA(prev => prev.filter(p => p.player_id !== id))}
               onLoadTeam={setTeamA}
@@ -236,7 +242,7 @@ export default function Compare() {
           </Card>
           <Card padding="md">
             <TeamPanel
-              label="XI Variant B" color="#60a5fa" team={teamB} format={format}
+              label="XI Variant B" color="#60a5fa" team={teamB} format={format} gender={gender}
               onAdd={(p) => teamB.length < 11 && setTeamB(prev => [...prev, makePlayerIn(p)])}
               onRemove={(id) => setTeamB(prev => prev.filter(p => p.player_id !== id))}
               onLoadTeam={setTeamB}
@@ -244,7 +250,7 @@ export default function Compare() {
           </Card>
           <Card padding="md">
             <TeamPanel
-              label="Opponent" color="#a78bfa" team={opponent} format={format}
+              label="Opponent" color="#a78bfa" team={opponent} format={format} gender={gender}
               onAdd={(p) => opponent.length < 11 && setOpponent(prev => [...prev, makePlayerIn(p)])}
               onRemove={(id) => setOpponent(prev => prev.filter(p => p.player_id !== id))}
               onLoadTeam={setOpponent}

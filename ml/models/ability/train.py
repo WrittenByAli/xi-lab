@@ -276,8 +276,15 @@ def main() -> None:
         default="t20",
         help="Cricket format to train on (default: t20).",
     )
+    parser.add_argument(
+        "--gender",
+        choices=["male", "female"],
+        default="male",
+        help="Gender to train on (default: male).",
+    )
     args = parser.parse_args()
     fmt = args.format
+    gender = args.gender
 
     # ── Config ────────────────────────────────────────────────────────────
     splits = PARAMS["splits"]
@@ -288,7 +295,7 @@ def main() -> None:
     prior_n = float(ability["min_balls_for_rating"])
 
     # ── Load snapshots ────────────────────────────────────────────────────
-    snap_path = ROOT / "data" / "processed" / "snapshots" / fmt / "snapshots.parquet"
+    snap_path = ROOT / "data" / "processed" / "snapshots" / fmt / gender / "snapshots.parquet"
     print(f"Loading snapshots from {snap_path}")
     snapshots = pd.read_parquet(snap_path)
     snapshots["snapshot_month"] = pd.to_datetime(snapshots["snapshot_month"])
@@ -340,21 +347,21 @@ def main() -> None:
     )
 
     # ── Save model artifacts ──────────────────────────────────────────────
-    model_dir = ROOT / "data" / "processed" / "models" / "ability"
+    model_dir = ROOT / "data" / "processed" / "models" / "ability" / gender
     model_dir.mkdir(parents=True, exist_ok=True)
 
     fmt_path = model_dir / f"ratings_{fmt}.parquet"
     all_ratings.to_parquet(fmt_path, index=False, engine="pyarrow")
     print(f"Ratings written to {fmt_path}  ({len(all_ratings):,} rows)")
 
-    # Merge all format-specific ratings into a combined file
+    # Merge this gender's format-specific ratings into a combined file
     parts = []
     for f in model_dir.glob("ratings_*.parquet"):
         parts.append(pd.read_parquet(f))
     if parts:
         merged = pd.concat(parts, ignore_index=True)
         merged.to_parquet(model_dir / "ratings.parquet", index=False, engine="pyarrow")
-        print(f"Combined ratings: {len(merged):,} rows across {len(parts)} format(s)")
+        print(f"Combined ratings ({gender}): {len(merged):,} rows across {len(parts)} format(s)")
 
     priors_path = model_dir / "group_priors.json"
     with open(priors_path, "w") as fh:
@@ -364,6 +371,7 @@ def main() -> None:
     # ── Evaluate ──────────────────────────────────────────────────────────
     metrics = evaluate_on_validation(train_ratings, val_df, prior_n, priors)
     metrics["format"] = fmt
+    metrics["gender"] = gender
     metrics["prior_n"] = prior_n
     metrics["train_end"] = str(train_end.date())
     metrics["val_start"] = str(val_start.date())
@@ -371,8 +379,11 @@ def main() -> None:
 
     metrics_dir = ROOT / "data" / "processed" / "metrics"
     metrics_dir.mkdir(parents=True, exist_ok=True)
-    metrics_path = metrics_dir / "ability.json"
+    metrics_path = metrics_dir / f"ability_{fmt}_{gender}.json"
     with open(metrics_path, "w") as fh:
+        json.dump(metrics, fh, indent=2)
+    # Also keep an unqualified "latest run" copy for simple default-lookups.
+    with open(metrics_dir / "ability.json", "w") as fh:
         json.dump(metrics, fh, indent=2)
     print(f"Metrics written to {metrics_path}")
     print(f"  bat_rating_vs_sr_corr:  {metrics.get('bat_rating_vs_sr_corr')}")

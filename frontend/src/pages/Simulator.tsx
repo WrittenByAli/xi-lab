@@ -6,8 +6,19 @@ import Card, { CardTitle } from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Skeleton from '../components/ui/Skeleton'
+import MatchContextPanel from '../components/cricket/MatchContextPanel'
+import { useGender } from '../lib/genderContext'
 import { api } from '../lib/api'
-import type { PlayerIn, PlayerSearchResult, SimulateResponse, TeamSummary, SquadPlayer } from '../lib/api'
+import type {
+  PlayerIn,
+  PlayerSearchResult,
+  SimulateResponse,
+  TeamSummary,
+  SquadPlayer,
+  Gender,
+  PitchCondition,
+  TossDecision,
+} from '../lib/api'
 
 function makePlayerIn(p: PlayerSearchResult): PlayerIn {
   return {
@@ -26,8 +37,8 @@ function squadPlayerToPlayerIn(p: SquadPlayer): PlayerIn {
   }
 }
 
-function TeamPanel({ label, color, team, format, onAdd, onRemove, onLoadTeam }: {
-  label: string; color: string; team: PlayerIn[]; format: string
+function TeamPanel({ label, color, team, format, gender, onAdd, onRemove, onLoadTeam }: {
+  label: string; color: string; team: PlayerIn[]; format: string; gender: Gender
   onAdd: (p: PlayerSearchResult) => void; onRemove: (id: string) => void
   onLoadTeam: (players: PlayerIn[]) => void
 }) {
@@ -38,14 +49,15 @@ function TeamPanel({ label, color, team, format, onAdd, onRemove, onLoadTeam }: 
   const [teamsLoading, setTeamsLoading] = useState(false)
   const [teamFilter, setTeamFilter] = useState('')
   const [loadingSquad, setLoadingSquad] = useState('')
+  const [squadScope, setSquadScope] = useState<'current' | 'all_time'>('current')
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
-    if (showPicker && teams.length === 0) {
+    if (showPicker) {
       setTeamsLoading(true)
-      api.listTeams(format, 80).then(setTeams).catch(() => {}).finally(() => setTeamsLoading(false))
+      api.listTeams(format, gender, 80).then(setTeams).catch(() => {}).finally(() => setTeamsLoading(false))
     }
-  }, [showPicker, format, teams.length])
+  }, [showPicker, format, gender])
 
   const search = useCallback((val: string) => {
     setQ(val)
@@ -62,7 +74,7 @@ function TeamPanel({ label, color, team, format, onAdd, onRemove, onLoadTeam }: 
   const loadSquad = async (teamName: string) => {
     setLoadingSquad(teamName)
     try {
-      const data = await api.getSquad(teamName, format)
+      const data = await api.getSquad(teamName, format, gender, squadScope === 'all_time')
       onLoadTeam(data.players.slice(0, 11).map(squadPlayerToPlayerIn))
       setShowPicker(false)
     } catch (_) { /* */ }
@@ -121,6 +133,21 @@ function TeamPanel({ label, color, team, format, onAdd, onRemove, onLoadTeam }: 
             className="overflow-hidden mb-2"
           >
             <div className="bg-surface-2 border border-surface-border rounded-xl p-3">
+              <div className="flex bg-surface-3 rounded-lg p-0.5 mb-2">
+                {([
+                  { value: 'current', label: 'Current' },
+                  { value: 'all_time', label: 'All-time' },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setSquadScope(opt.value)}
+                    className={`flex-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all cursor-pointer
+                      ${squadScope === opt.value ? 'bg-surface-1 text-accent' : 'text-text-tertiary'}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
               <div className="relative mb-2">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-tertiary" />
                 <input
@@ -171,17 +198,28 @@ function TeamPanel({ label, color, team, format, onAdd, onRemove, onLoadTeam }: 
 const FORMATS = ['t20', 'odi', 'test'] as const
 
 export default function Simulator() {
+  const { gender } = useGender()
   const [team1, setTeam1] = useState<PlayerIn[]>([])
   const [team2, setTeam2] = useState<PlayerIn[]>([])
   const [format, setFormat] = useState<string>('t20')
   const [result, setResult] = useState<SimulateResponse | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const [venue, setVenue] = useState<string | null>(null)
+  const [pitchCondition, setPitchCondition] = useState<PitchCondition>('auto')
+  const [tossDecision, setTossDecision] = useState<TossDecision | null>(null)
+
+  useEffect(() => {
+    setTeam1([])
+    setTeam2([])
+    setResult(null)
+  }, [format, gender])
+
   const simulate = async () => {
     if (team1.length !== 11 || team2.length !== 11) return
     setLoading(true)
     try {
-      const r = await api.simulate(team1, team2, format, 5000)
+      const r = await api.simulate(team1, team2, format, gender, { venue, pitchCondition, tossDecision }, 5000)
       setResult(r)
     } catch (_) { /* */ }
     setLoading(false)
@@ -219,11 +257,25 @@ export default function Simulator() {
       </PageHeader>
 
       <div className="px-8 space-y-6">
+        <MatchContextPanel
+          format={format}
+          gender={gender}
+          showOpponent={false}
+          opponentTeam={null}
+          onOpponentChange={() => {}}
+          venue={venue}
+          onVenueChange={setVenue}
+          pitchCondition={pitchCondition}
+          onPitchChange={setPitchCondition}
+          tossDecision={tossDecision}
+          onTossChange={setTossDecision}
+        />
+
         {/* Team panels */}
         <div className="flex gap-6">
           <Card padding="md" className="flex-1">
             <TeamPanel
-              label="Team 1" color="#e5a84b" team={team1} format={format}
+              label="Team 1" color="#e5a84b" team={team1} format={format} gender={gender}
               onAdd={(p) => team1.length < 11 && setTeam1(prev => [...prev, makePlayerIn(p)])}
               onRemove={(id) => setTeam1(prev => prev.filter(p => p.player_id !== id))}
               onLoadTeam={setTeam1}
@@ -231,7 +283,7 @@ export default function Simulator() {
           </Card>
           <Card padding="md" className="flex-1">
             <TeamPanel
-              label="Team 2" color="#60a5fa" team={team2} format={format}
+              label="Team 2" color="#60a5fa" team={team2} format={format} gender={gender}
               onAdd={(p) => team2.length < 11 && setTeam2(prev => [...prev, makePlayerIn(p)])}
               onRemove={(id) => setTeam2(prev => prev.filter(p => p.player_id !== id))}
               onLoadTeam={setTeam2}

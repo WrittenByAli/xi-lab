@@ -46,17 +46,27 @@ FORMAT_DIRS = {
 # ── Single-match parser ───────────────────────────────────────────────────────
 
 
-def parse_match(path: Path) -> dict[str, list[dict]]:
+def parse_match(
+    path: Path, *, require_gender: str | None = None
+) -> dict[str, list[dict]] | None:
     """
     Parse one Cricsheet JSON file.
 
-    Returns a dict with keys 'match', 'innings', 'balls', 'lineup'.
+    Returns a dict with keys 'match', 'innings', 'balls', 'lineup', or None
+    if `require_gender` is set and doesn't match this match's gender.
     Raises ValueError with the match_id if reconciliation fails.
     """
     with path.open(encoding="utf-8") as f:
         raw: dict[str, Any] = json.load(f)
 
     info: dict = raw.get("info", {})
+
+    # Cricsheet mixes men's and women's matches under identical team names
+    # (e.g. "India"), so each gender is parsed into its own output directory —
+    # without this filter a squad lookup would silently blend both player pools.
+    if require_gender is not None and info.get("gender", "male") != require_gender:
+        return None
+
     deliveries_data: list[dict] = raw.get("innings", [])
 
     # ── Match-level fields ────────────────────────────────────────────────────
@@ -276,21 +286,32 @@ def parse_match(path: Path) -> dict[str, list[dict]]:
 # ── Batch parser ──────────────────────────────────────────────────────────────
 
 
-def parse_format(fmt: str) -> None:
+def parse_format(fmt: str, gender: str = "male") -> None:
+    """Parse one format for one gender into data/interim/{fmt}/{gender}/.
+
+    Cricsheet's combined zips (t20s_json.zip etc.) already contain both men's
+    and women's matches under identical team names (e.g. "India"), so matches
+    are filtered to `gender` here and written to a gender-scoped directory —
+    without that, a squad lookup would silently blend both player pools.
+    """
     src_dir = FORMAT_DIRS[fmt]
     paths = sorted(src_dir.glob("*.json"))
     if not paths:
         logger.warning("No JSON files found in %s", src_dir)
         return
 
-    logger.info("Parsing %d %s files...", len(paths), fmt)
+    logger.info("Parsing %d %s (%s) files...", len(paths), fmt, gender)
 
     all_matches, all_innings, all_balls, all_lineups = [], [], [], []
     errors: list[str] = []
+    skipped = 0
 
     for path in paths:
         try:
-            result = parse_match(path)
+            result = parse_match(path, require_gender=gender)
+            if result is None:
+                skipped += 1
+                continue
             all_matches.extend(result["match"])
             all_innings.extend(result["innings"])
             all_balls.extend(result["balls"])
@@ -298,12 +319,19 @@ def parse_format(fmt: str) -> None:
         except Exception as exc:
             errors.append(f"{path.name}: {exc}")
 
+    if skipped:
+        logger.info("Skipped %d non-%s matches", skipped, gender)
+
     if errors:
         logger.warning("%d parse errors:", len(errors))
         for e in errors[:20]:
             logger.warning("  %s", e)
 
-    out_dir = INTERIM / fmt
+    if not all_matches:
+        logger.warning("No %s matches found for %s — skipping save", gender, fmt)
+        return
+
+    out_dir = INTERIM / fmt / gender
     out_dir.mkdir(parents=True, exist_ok=True)
 
     def _save(rows: list[dict], schema: type[pa.DataFrameModel], name: str) -> None:
@@ -312,10 +340,14 @@ def parse_format(fmt: str) -> None:
             schema.validate(df, lazy=True)
         except pa.errors.SchemaErrors as exc:
             logger.warning(
-                "Schema warnings in %s/%s: %d failures", fmt, name, len(exc.failure_cases)
+                "Schema warnings in %s/%s/%s: %d failures",
+                fmt,
+                gender,
+                name,
+                len(exc.failure_cases),
             )
         df.to_parquet(out_dir / f"{name}.parquet", index=False)
-        logger.info("  Saved %s/%s: %d rows", fmt, name, len(df))
+        logger.info("  Saved %s/%s/%s: %d rows", fmt, gender, name, len(df))
 
     _save(all_matches, MatchSchema, "matches")
     _save(all_innings, InningsSchema, "innings")
@@ -333,8 +365,16 @@ if __name__ == "__main__":
         default=None,
         help="Parse only this format (default: all)",
     )
+    parser.add_argument(
+        "--gender",
+        choices=["male", "female"],
+        default=None,
+        help="Parse only this gender (default: both)",
+    )
     args = parser.parse_args()
 
     formats = [args.format] if args.format else list(FORMAT_DIRS.keys())
+    genders = [args.gender] if args.gender else ["male", "female"]
     for fmt in formats:
-        parse_format(fmt)
+        for gender in genders:
+            parse_format(fmt, gender)

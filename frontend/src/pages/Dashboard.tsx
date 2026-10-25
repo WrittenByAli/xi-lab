@@ -7,6 +7,7 @@ import PageHeader from '../components/ui/PageHeader'
 import Skeleton from '../components/ui/Skeleton'
 import type { BacktestMetrics } from '../lib/api'
 import { api } from '../lib/api'
+import { useGender } from '../lib/genderContext'
 
 const quickLinks = [
   { to: '/squad', icon: Users, label: 'Build XI', desc: 'Select your best XI from a squad' },
@@ -17,6 +18,7 @@ const quickLinks = [
 ]
 
 export default function Dashboard() {
+  const { gender } = useGender()
   const [t20Metrics, setT20Metrics] = useState<BacktestMetrics | null>(null)
   const [odiMetrics, setOdiMetrics] = useState<BacktestMetrics | null>(null)
   const [testMetrics, setTestMetrics] = useState<BacktestMetrics | null>(null)
@@ -24,10 +26,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    setLoading(true)
     Promise.allSettled([
-      api.getResults('t20'),
-      api.getResults('odi'),
-      api.getResults('test'),
+      api.getResults('t20', gender),
+      api.getResults('odi', gender),
+      api.getResults('test', gender),
       api.health(),
     ]).then(([t20, odi, test, h]) => {
       if (t20.status === 'fulfilled') setT20Metrics(t20.value)
@@ -36,7 +39,7 @@ export default function Dashboard() {
       if (h.status === 'fulfilled') setHealth(h.value)
       setLoading(false)
     })
-  }, [])
+  }, [gender])
 
   return (
     <div className="pb-12">

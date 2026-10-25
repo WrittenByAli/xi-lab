@@ -34,8 +34,10 @@ BOWLER_DISMISSALS = frozenset(
 )
 
 
-def _load_data(fmt: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    base = ROOT / "data" / "interim" / fmt
+def _load_data(
+    fmt: str, gender: str = "male"
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    base = ROOT / "data" / "interim" / fmt / gender
     balls = pd.read_parquet(base / "balls.parquet")
     matches = pd.read_parquet(base / "matches.parquet")
     innings = pd.read_parquet(base / "innings.parquet")
@@ -244,10 +246,10 @@ def build_recent_form(
     return bat.reset_index().merge(bowl.reset_index(), on="player_id", how="outer")
 
 
-def build_snapshots_for_format(fmt: str) -> pd.DataFrame:
+def build_snapshots_for_format(fmt: str, gender: str = "male") -> pd.DataFrame:
     """Build all monthly snapshots for one format."""
-    print(f"[{fmt}] Loading data...")
-    balls, matches, innings, lineups = _load_data(fmt)
+    print(f"[{fmt}/{gender}] Loading data...")
+    balls, matches, innings, lineups = _load_data(fmt, gender)
     meta = _load_meta()
 
     match_dates = matches.set_index("match_id")["date"]
@@ -258,7 +260,10 @@ def build_snapshots_for_format(fmt: str) -> pd.DataFrame:
     phase_names = fmt_params.get("phase_names", ["powerplay", "middle", "death"])
 
     months = _month_range(matches["date"])
-    print(f"[{fmt}] {len(months)} monthly snapshots from {months[0].date()} to {months[-1].date()}")
+    print(
+        f"[{fmt}/{gender}] {len(months)} monthly snapshots from "
+        f"{months[0].date()} to {months[-1].date()}"
+    )
 
     all_snapshots = []
     for i, cutoff in enumerate(months):
@@ -302,7 +307,8 @@ def build_snapshots_for_format(fmt: str) -> pd.DataFrame:
 
     result = pd.concat(all_snapshots, ignore_index=True)
     print(
-        f"[{fmt}] {len(result):,} total snapshot rows ({result['player_id'].nunique():,} unique players)"
+        f"[{fmt}/{gender}] {len(result):,} total snapshot rows "
+        f"({result['player_id'].nunique():,} unique players)"
     )
     return result
 
@@ -310,30 +316,34 @@ def build_snapshots_for_format(fmt: str) -> pd.DataFrame:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--format", choices=["t20", "odi", "test"], default=None)
+    parser.add_argument("--gender", choices=["male", "female"], default=None)
     args = parser.parse_args()
 
-    formats = []
+    genders = [args.gender] if args.gender else ["male", "female"]
+
+    targets = []
     for fmt in ("t20", "odi", "test"):
         if args.format and fmt != args.format:
             continue
-        data_dir = ROOT / "data" / "interim" / fmt
-        if (data_dir / "balls.parquet").exists():
-            formats.append(fmt)
+        for gender in genders:
+            data_dir = ROOT / "data" / "interim" / fmt / gender
+            if (data_dir / "balls.parquet").exists():
+                targets.append((fmt, gender))
 
-    if not formats:
+    if not targets:
         print("No parsed data found. Run parse.py first.")
         return
 
     out_dir = ROOT / "data" / "processed" / "snapshots"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    for fmt in formats:
-        df = build_snapshots_for_format(fmt)
-        fmt_dir = out_dir / fmt
-        fmt_dir.mkdir(exist_ok=True)
+    for fmt, gender in targets:
+        df = build_snapshots_for_format(fmt, gender)
+        fmt_dir = out_dir / fmt / gender
+        fmt_dir.mkdir(parents=True, exist_ok=True)
         out_path = fmt_dir / "snapshots.parquet"
         df.to_parquet(out_path, index=False, engine="pyarrow")
-        print(f"[{fmt}] Written to {out_path}")
+        print(f"[{fmt}/{gender}] Written to {out_path}")
 
 
 if __name__ == "__main__":

@@ -6,8 +6,8 @@ stages:
     outs:
       - data/raw/cricsheet
 
-  parse_t20:
-    cmd: python ml/ingest/parse.py --format t20
+  parse_t20_male:
+    cmd: python ml/ingest/parse.py --format t20 --gender male
     deps:
       - ml/ingest/parse.py
       - ml/ingest/schemas.py
@@ -16,10 +16,22 @@ stages:
       - data/reference/venue_map.csv
       - data/reference/league_map.csv
     outs:
-      - data/interim/t20
+      - data/interim/t20/male
 
-  parse_odi:
-    cmd: python ml/ingest/parse.py --format odi
+  parse_t20_female:
+    cmd: python ml/ingest/parse.py --format t20 --gender female
+    deps:
+      - ml/ingest/parse.py
+      - ml/ingest/schemas.py
+      - ml/ingest/normalize.py
+      - data/raw/cricsheet/t20s
+      - data/reference/venue_map.csv
+      - data/reference/league_map.csv
+    outs:
+      - data/interim/t20/female
+
+  parse_odi_male:
+    cmd: python ml/ingest/parse.py --format odi --gender male
     deps:
       - ml/ingest/parse.py
       - ml/ingest/schemas.py
@@ -28,10 +40,22 @@ stages:
       - data/reference/venue_map.csv
       - data/reference/league_map.csv
     outs:
-      - data/interim/odi
+      - data/interim/odi/male
 
-  parse_test:
-    cmd: python ml/ingest/parse.py --format test
+  parse_odi_female:
+    cmd: python ml/ingest/parse.py --format odi --gender female
+    deps:
+      - ml/ingest/parse.py
+      - ml/ingest/schemas.py
+      - ml/ingest/normalize.py
+      - data/raw/cricsheet/odis
+      - data/reference/venue_map.csv
+      - data/reference/league_map.csv
+    outs:
+      - data/interim/odi/female
+
+  parse_test_male:
+    cmd: python ml/ingest/parse.py --format test --gender male
     deps:
       - ml/ingest/parse.py
       - ml/ingest/schemas.py
@@ -40,7 +64,19 @@ stages:
       - data/reference/venue_map.csv
       - data/reference/league_map.csv
     outs:
-      - data/interim/test
+      - data/interim/test/male
+
+  parse_test_female:
+    cmd: python ml/ingest/parse.py --format test --gender female
+    deps:
+      - ml/ingest/parse.py
+      - ml/ingest/schemas.py
+      - ml/ingest/normalize.py
+      - data/raw/cricsheet/tests
+      - data/reference/venue_map.csv
+      - data/reference/league_map.csv
+    outs:
+      - data/interim/test/female
 
   features:
     cmd: python ml/features/snapshots.py
@@ -48,6 +84,7 @@ stages:
       - ml/features/snapshots.py
       - data/interim/t20
       - data/interim/odi
+      - data/interim/test
       - data/reference/player_meta.csv
       - params.yaml
     params:
@@ -57,7 +94,13 @@ stages:
       - data/processed/snapshots
 
   train_ability:
-    cmd: python ml/models/ability/train.py
+    cmd: >-
+      python ml/models/ability/train.py --format t20 --gender male &&
+      python ml/models/ability/train.py --format odi --gender male &&
+      python ml/models/ability/train.py --format test --gender male &&
+      python ml/models/ability/train.py --format t20 --gender female &&
+      python ml/models/ability/train.py --format odi --gender female &&
+      python ml/models/ability/train.py --format test --gender female
     deps:
       - ml/models/ability/train.py
       - data/processed/snapshots
@@ -72,11 +115,16 @@ stages:
       - data/processed/metrics/ability.json
 
   train_ball:
-    cmd: python ml/models/ball/train.py
+    cmd: >-
+      python ml/models/ball/train.py --format t20 --gender male &&
+      python ml/models/ball/train.py --format odi --gender male &&
+      python ml/models/ball/train.py --format t20 --gender female &&
+      python ml/models/ball/train.py --format odi --gender female
     deps:
       - ml/models/ball/train.py
       - data/processed/snapshots
       - data/interim/t20
+      - data/interim/odi
       - params.yaml
     params:
       - ball_model
@@ -87,11 +135,15 @@ stages:
       - data/processed/metrics/ball.json
 
   train_policies:
-    cmd: python ml/models/policies/train.py
+    cmd: >-
+      python ml/models/policies/train.py --format t20 --gender male &&
+      python ml/models/policies/train.py --format odi --gender male &&
+      python ml/models/policies/train.py --format t20 --gender female &&
+      python ml/models/policies/train.py --format odi --gender female
     deps:
       - ml/models/policies/train.py
-      - data/processed/snapshots
       - data/interim/t20
+      - data/interim/odi
       - params.yaml
     params:
       - splits
@@ -101,7 +153,11 @@ stages:
       - data/processed/metrics/policies.json
 
   backtest:
-    cmd: python ml/evaluate/backtest.py
+    cmd: >-
+      python ml/evaluate/backtest.py --format t20 --gender male &&
+      python ml/evaluate/backtest.py --format odi --gender male &&
+      python ml/evaluate/backtest.py --format t20 --gender female &&
+      python ml/evaluate/backtest.py --format odi --gender female
     deps:
       - ml/evaluate/backtest.py
       - data/processed/models/ball

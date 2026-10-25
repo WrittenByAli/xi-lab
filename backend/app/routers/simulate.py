@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import numpy as np
+import pandas as pd
 from fastapi import APIRouter
 
 from backend.app.schemas.models import (
@@ -10,64 +10,48 @@ from backend.app.schemas.models import (
     SimulateRequest,
     SimulateResponse,
 )
-from backend.app.services.selection import build_score_distribution
-from ml.simulate.engine import (
-    BattingCard,
-    BowlingCard,
-    MatchContext,
-    simulate_match,
+from backend.app.services.selection import (
+    build_player_feature_row,
+    build_score_distribution,
+    format_config,
 )
+from ml.simulate.cards import CardContext, build_cards
+from ml.simulate.engine import MatchContext, simulate_match
 
 router = APIRouter()
-
-_DEFAULT_PROBS = np.array([0.35, 0.25, 0.08, 0.01, 0.12, 0.06, 0.08, 0.03, 0.02])
-
-
-def _norm_bat(raw: float) -> float:
-    """Normalize bat_rating to [0, 1]. Median ~51, elite ~100+."""
-    return float(np.clip((raw - 25) / 75, 0, 1))
-
-
-def _norm_bowl(raw: float) -> float:
-    """Normalize bowl_rating to [0, 1]. Values are negative; less negative = better."""
-    return float(np.clip((-raw - 10) / 40, 0, 1))
-
-
-def _player_to_cards(player) -> tuple[BattingCard, BowlingCard]:
-    br = _norm_bat(player.bat_rating)
-    wr = _norm_bowl(player.bowl_rating)
-
-    bat_probs = _DEFAULT_PROBS.copy()
-    bat_probs[0] = max(0.05, 0.40 - br * 0.1)
-    bat_probs[4] = min(0.25, 0.08 + br * 0.05)
-    bat_probs[5] = min(0.15, 0.04 + br * 0.03)
-    bat_probs /= bat_probs.sum()
-
-    bowl_probs = _DEFAULT_PROBS.copy()
-    bowl_probs[6] = min(0.20, 0.06 + wr * 0.04)
-    bowl_probs[0] = min(0.50, 0.30 + wr * 0.05)
-    bowl_probs /= bowl_probs.sum()
-
-    phases = {p: bat_probs for p in ["powerplay", "middle", "death"]}
-    bowl_phases = {p: bowl_probs for p in ["powerplay", "middle", "death"]}
-
-    return (
-        BattingCard(player_id=player.player_id, probs_by_phase=phases),
-        BowlingCard(player_id=player.player_id, probs_by_phase=bowl_phases),
-    )
 
 
 @router.post("", response_model=SimulateResponse)
 def simulate(req: SimulateRequest):
+    fmt_cfg = format_config(req.format)
+    ctx = CardContext(
+        fmt=req.format,
+        gender=req.gender,
+        phase_names=fmt_cfg.get("phase_names", ["powerplay", "middle", "death"]),
+        venue_id=req.venue or "unknown",
+        toss_bat_first=(req.toss_decision == "bat"),
+        pitch_condition=req.pitch_condition,
+        max_overs_per_bowler=fmt_cfg.get("max_bowler_overs", 4),
+    )
+
+    t1_rows = [build_player_feature_row(p, req.format, req.gender) for p in req.team1]
+    t2_rows = [build_player_feature_row(p, req.format, req.gender) for p in req.team2]
+    t1_opp_avg = {}  # team2's own average stands in for "the attack team1 faces"
+    t2_opp_avg = {}
+    if t2_rows:
+        t1_opp_avg = pd.DataFrame(t2_rows).mean(numeric_only=True).to_dict()
+    if t1_rows:
+        t2_opp_avg = pd.DataFrame(t1_rows).mean(numeric_only=True).to_dict()
+
     t1_bat, t1_bowl = [], []
-    for p in req.team1:
-        bc, blc = _player_to_cards(p)
+    for row in t1_rows:
+        bc, blc = build_cards(row, t1_opp_avg, ctx)
         t1_bat.append(bc)
         t1_bowl.append(blc)
 
     t2_bat, t2_bowl = [], []
-    for p in req.team2:
-        bc, blc = _player_to_cards(p)
+    for row in t2_rows:
+        bc, blc = build_cards(row, t2_opp_avg, ctx)
         t2_bat.append(bc)
         t2_bowl.append(blc)
 
@@ -86,7 +70,14 @@ def simulate(req: SimulateRequest):
     if len(bowlers2) < 5:
         bowlers2 = t2_bowl[:5]
 
-    ctx1 = MatchContext(batting_order=t1_bat, bowling_attack=bowlers2)
+    total_overs = fmt_cfg.get("overs", 20)
+    ctx1 = MatchContext(
+        batting_order=t1_bat,
+        bowling_attack=bowlers2,
+        total_overs=total_overs,
+        phases=fmt_cfg.get("phases", [[0, 5], [6, 15], [16, 19]]),
+        phase_names=ctx.phase_names,
+    )
     result = simulate_match(ctx1, t2_bat, t1_bowl, n_sims=min(req.n_sims, 50000))
 
     return SimulateResponse(

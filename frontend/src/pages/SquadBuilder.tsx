@@ -8,8 +8,18 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Skeleton from '../components/ui/Skeleton'
 import PlayerCard from '../components/cricket/PlayerCard'
+import MatchContextPanel from '../components/cricket/MatchContextPanel'
+import { useGender } from '../lib/genderContext'
 import { api } from '../lib/api'
-import type { PlayerIn, PlayerSearchResult, RecommendResponse, TeamSummary, SquadPlayer } from '../lib/api'
+import type {
+  PlayerIn,
+  PlayerSearchResult,
+  RecommendResponse,
+  TeamSummary,
+  SquadPlayer,
+  PitchCondition,
+  TossDecision,
+} from '../lib/api'
 
 function makePlayerIn(p: PlayerSearchResult): PlayerIn {
   return {
@@ -42,6 +52,7 @@ function squadPlayerToPlayerIn(p: SquadPlayer): PlayerIn {
 const FORMATS = ['t20', 'odi', 'test'] as const
 
 export default function SquadBuilder() {
+  const { gender } = useGender()
   const [squad, setSquad] = useState<PlayerIn[]>([])
   const [format, setFormat] = useState<string>('t20')
   const [searchQ, setSearchQ] = useState('')
@@ -51,24 +62,38 @@ export default function SquadBuilder() {
   const [error, setError] = useState('')
   const debounce = useRef<ReturnType<typeof setTimeout>>(undefined)
 
+  // Match context: ground, opponent, pitch, toss
+  const [opponentTeam, setOpponentTeam] = useState<string | null>(null)
+  const [venue, setVenue] = useState<string | null>(null)
+  const [pitchCondition, setPitchCondition] = useState<PitchCondition>('auto')
+  const [tossDecision, setTossDecision] = useState<TossDecision | null>(null)
+
   // Team preset state
   const [showTeamPicker, setShowTeamPicker] = useState(false)
   const [teams, setTeams] = useState<TeamSummary[]>([])
   const [teamsLoading, setTeamsLoading] = useState(false)
   const [teamFilter, setTeamFilter] = useState('')
   const [loadingSquad, setLoadingSquad] = useState('')
+  const [squadScope, setSquadScope] = useState<'current' | 'all_time'>('current')
 
   useEffect(() => {
-    if (showTeamPicker && teams.length === 0) {
+    if (showTeamPicker) {
       setTeamsLoading(true)
-      api.listTeams(format, 100).then(setTeams).catch(() => {}).finally(() => setTeamsLoading(false))
+      api.listTeams(format, gender, 100).then(setTeams).catch(() => {}).finally(() => setTeamsLoading(false))
     }
-  }, [showTeamPicker, format, teams.length])
+  }, [showTeamPicker, format, gender])
+
+  useEffect(() => {
+    // Format or gender changed — the loaded squad/result belong to the old scope.
+    setSquad([])
+    setResult(null)
+    setOpponentTeam(null)
+  }, [format, gender])
 
   const loadTeamSquad = async (team: string) => {
     setLoadingSquad(team)
     try {
-      const data = await api.getSquad(team, format)
+      const data = await api.getSquad(team, format, gender, squadScope === 'all_time')
       const top = data.players.slice(0, 18)
       setSquad(top.map(squadPlayerToPlayerIn))
       setResult(null)
@@ -116,7 +141,11 @@ export default function SquadBuilder() {
     setError('')
     setLoading(true)
     try {
-      const r = await api.recommend(squad, format)
+      const r = await api.recommend(squad, format, gender, opponentTeam, {
+        venue,
+        pitchCondition,
+        tossDecision,
+      })
       setResult(r)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to get recommendation')
@@ -158,6 +187,21 @@ export default function SquadBuilder() {
           </Button>
         </div>
       </PageHeader>
+
+      <div className="px-8 pb-4">
+        <MatchContextPanel
+          format={format}
+          gender={gender}
+          opponentTeam={opponentTeam}
+          onOpponentChange={setOpponentTeam}
+          venue={venue}
+          onVenueChange={setVenue}
+          pitchCondition={pitchCondition}
+          onPitchChange={setPitchCondition}
+          tossDecision={tossDecision}
+          onTossChange={setTossDecision}
+        />
+      </div>
 
       <div className="px-8 flex gap-6">
         {/* Left: Squad management */}
@@ -487,7 +531,7 @@ export default function SquadBuilder() {
                 <div>
                   <h3 className="text-[15px] font-semibold text-text-primary">Load Team Roster</h3>
                   <p className="text-[12px] text-text-tertiary mt-0.5">
-                    Select a team to import their recent {format.toUpperCase()} squad
+                    Select a team to import their {format.toUpperCase()} squad
                   </p>
                 </div>
                 <button
@@ -496,6 +540,27 @@ export default function SquadBuilder() {
                 >
                   <X className="w-4 h-4 text-text-tertiary" />
                 </button>
+              </div>
+
+              {/* Current vs all-time scope */}
+              <div className="px-5 pt-3">
+                <div className="flex bg-surface-2 rounded-lg p-0.5">
+                  {([
+                    { value: 'current', label: "Current squad (today's players)" },
+                    { value: 'all_time', label: 'Overall / all-time XI' },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setSquadScope(opt.value)}
+                      className={`flex-1 px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all duration-150 cursor-pointer
+                        ${squadScope === opt.value
+                          ? 'bg-surface-3 text-accent shadow-sm'
+                          : 'text-text-tertiary hover:text-text-secondary'}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Search */}

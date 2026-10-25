@@ -57,6 +57,13 @@ DOWNLOADS: list[tuple[str, str]] = [
     ("t20s", "https://cricsheet.org/downloads/lpl_json.zip"),
     ("t20s", "https://cricsheet.org/downloads/mlc_json.zip"),
     ("t20s", "https://cricsheet.org/downloads/ssm_json.zip"),
+    # ── Women's leagues ────────────────────────────────────────────────────
+    # Internationals (t20s/odis/tests) are "all gender" combined bundles and
+    # already include women's matches — parse.py filters by gender, so no
+    # separate international download is needed. These two leagues have no
+    # men's equivalent bundle, so they're fetched explicitly.
+    ("t20s", "https://cricsheet.org/downloads/wbb_female_json.zip"),  # Women's Big Bash
+    ("t20s", "https://cricsheet.org/downloads/wpl_female_json.zip"),  # Women's Premier League
     # ── List A ─────────────────────────────────────────────────────────────
     ("listA", "https://cricsheet.org/downloads/odis_json.zip"),  # reuse ODI
     # ── Player register ────────────────────────────────────────────────────

@@ -20,8 +20,11 @@ class PlayerIn(BaseModel):
 class RecommendRequest(BaseModel):
     squad: list[PlayerIn] = Field(..., min_length=11)
     format: str = "t20"
+    gender: str = "male"
     opponent_team: str | None = None
     venue: str | None = None
+    pitch_condition: str = "auto"
+    toss_decision: str | None = None  # "bat" | "bowl" | None (undecided/auto)
     max_overseas: int = 4
     n_sims: int = 5000
 
@@ -49,8 +52,11 @@ class SimulateRequest(BaseModel):
     team1: list[PlayerIn] = Field(..., min_length=11, max_length=11)
     team2: list[PlayerIn] = Field(..., min_length=11, max_length=11)
     format: str = "t20"
+    gender: str = "male"
     n_sims: int = 10000
     venue: str | None = None
+    pitch_condition: str = "auto"
+    toss_decision: str | None = None  # "bat" | "bowl" | None (undecided/auto)
 
 
 class ScoreDistribution(BaseModel):
@@ -74,6 +80,9 @@ class CompareRequest(BaseModel):
     team1_b: list[PlayerIn] = Field(..., min_length=11, max_length=11)
     opponent: list[PlayerIn] = Field(..., min_length=11, max_length=11)
     format: str = "t20"
+    gender: str = "male"
+    venue: str | None = None
+    pitch_condition: str = "auto"
     n_sims: int = 10000
 
 

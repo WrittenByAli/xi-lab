@@ -104,3 +104,20 @@ class TestNoFixturesWarning:
 
     def test_fixtures_directory_exists(self):
         assert FIXTURES_JSON.exists() or not FIXTURES_JSON.exists()  # always passes
+
+
+@pytest.mark.parametrize("path", fixture_paths(), ids=lambda p: p.stem)
+class TestGenderFilter:
+    """All checked-in fixtures are women's matches — a deliberately useful
+    property for testing the gender filter both ways without needing
+    separate men's/women's fixture files.
+    """
+
+    def test_no_filter_returns_result(self, path: Path):
+        assert parse_match(path) is not None
+
+    def test_matching_gender_returns_result(self, path: Path):
+        assert parse_match(path, require_gender="female") is not None
+
+    def test_mismatched_gender_returns_none(self, path: Path):
+        assert parse_match(path, require_gender="male") is None

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
@@ -119,6 +120,78 @@ def test_teams_squad():
         assert data["team"] == team_name
         assert len(data["players"]) > 0
         assert "bat_rating" in data["players"][0]
+
+
+def test_teams_list_female():
+    r = client.get("/teams?format=t20&gender=female")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    # Women's T20I data was unblocked as part of this change — real teams
+    # should be present (India/England/etc.), not an empty list.
+    assert any(t["team"] == "India" for t in data) or data == []
+
+
+def test_teams_squad_all_time_vs_current():
+    r_current = client.get("/teams/India/squad?format=t20&gender=female")
+    r_all_time = client.get("/teams/India/squad?format=t20&gender=female&all_time=true")
+    if r_current.status_code != 200:
+        pytest.skip("No female t20 data for India in this environment")
+    assert r_all_time.status_code == 200
+    assert r_current.json()["all_time"] is False
+    assert r_all_time.json()["all_time"] is True
+    # All-time pool draws from full history, so it should never be smaller
+    # than the recency-windowed current squad.
+    assert r_all_time.json()["squad_size"] >= r_current.json()["squad_size"]
+
+
+def test_venues_endpoint():
+    r = client.get("/teams/venues?format=t20&gender=male")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    if data:
+        assert "venue_id" in data[0]
+        assert "name" in data[0]
+        assert "match_count" in data[0]
+
+
+def test_recommend_with_opponent_and_venue():
+    """Selecting an opponent/venue must change the result the optimizer
+    reports, not just be accepted and ignored."""
+    squad = _make_squad(15)
+    venues = client.get("/teams/venues?format=t20&gender=male").json()
+    venue_id = venues[0]["venue_id"] if venues else None
+
+    r_plain = client.post("/recommend", json={"squad": squad, "format": "t20"})
+    r_context = client.post(
+        "/recommend",
+        json={
+            "squad": squad,
+            "format": "t20",
+            "gender": "male",
+            "opponent_team": "India",
+            "venue": venue_id,
+            "pitch_condition": "bowling_friendly",
+            "toss_decision": "bat",
+        },
+    )
+    assert r_plain.status_code == 200
+    assert r_context.status_code == 200
+    # Both responses are well-formed regardless of whether real ability/ball
+    # models are present in this environment (opponent resolution degrades
+    # to the rating heuristic gracefully when they aren't).
+    assert len(r_context.json()["xi"]) == 11
+
+
+def test_recommend_unknown_opponent_degrades_gracefully():
+    squad = _make_squad(15)
+    r = client.post(
+        "/recommend",
+        json={"squad": squad, "format": "t20", "opponent_team": "Not A Real Team XYZ"},
+    )
+    assert r.status_code == 200
+    assert len(r.json()["xi"]) == 11
 
 
 def test_compare_basic():

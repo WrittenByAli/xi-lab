@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
@@ -6,10 +6,12 @@ import Input from '../components/ui/Input'
 import Card from '../components/ui/Card'
 import Badge, { roleBadgeVariant, roleLabel } from '../components/ui/Badge'
 import Skeleton from '../components/ui/Skeleton'
+import { useGender } from '../lib/genderContext'
 import { api } from '../lib/api'
 import type { PlayerSearchResult, PlayerProfile } from '../lib/api'
 
 export default function Players() {
+  const { gender } = useGender()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<PlayerSearchResult[]>([])
   const [selected, setSelected] = useState<PlayerProfile | null>(null)
@@ -36,7 +38,7 @@ export default function Players() {
   const selectPlayer = async (id: string, fmt?: string) => {
     setLoadingProfile(true)
     try {
-      const p = await api.getPlayer(id, fmt ?? format)
+      const p = await api.getPlayer(id, fmt ?? format, gender)
       setSelected(p)
     } catch (_) { /* */ }
     setLoadingProfile(false)
@@ -46,6 +48,11 @@ export default function Players() {
     setFormat(f)
     if (selected) selectPlayer(selected.player_id, f)
   }
+
+  useEffect(() => {
+    if (selected) selectPlayer(selected.player_id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gender])
 
   return (
     <div className="pb-12">

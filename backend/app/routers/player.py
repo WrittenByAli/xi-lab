@@ -34,8 +34,9 @@ def search_players(
 def get_player(
     player_id: str,
     format: str = Query("t20", pattern="^(t20|odi|test)$"),
+    gender: str = Query("male", pattern="^(male|female)$"),
 ):
-    profile = get_player_profile(player_id, format)
+    profile = get_player_profile(player_id, format, gender)
     if profile is None:
         raise HTTPException(404, f"Player '{player_id}' not found")
     return profile

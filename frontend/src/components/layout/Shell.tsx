@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { LayoutDashboard, Users, Swords, UserSearch, BarChart3, Activity, GitCompareArrows } from 'lucide-react'
 import clsx from 'clsx'
+import { useGender, type Gender } from '../../lib/genderContext'
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -10,6 +11,35 @@ const links = [
   { to: '/players', icon: UserSearch, label: 'Players' },
   { to: '/results', icon: BarChart3, label: 'Results' },
 ]
+
+const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+  { value: 'male', label: "Men's" },
+  { value: 'female', label: "Women's" },
+]
+
+function GenderToggle() {
+  const { gender, setGender } = useGender()
+  return (
+    <div className="px-5 pt-3">
+      <div className="flex bg-surface-2 rounded-lg p-0.5">
+        {GENDER_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setGender(opt.value)}
+            className={clsx(
+              'flex-1 px-2.5 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150 cursor-pointer',
+              gender === opt.value
+                ? 'bg-surface-3 text-accent shadow-sm'
+                : 'text-text-tertiary hover:text-text-secondary'
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function Shell() {
   return (
@@ -28,6 +58,9 @@ export default function Shell() {
             </span>
           </div>
         </div>
+
+        {/* Gender */}
+        <GenderToggle />
 
         {/* Nav */}
         <nav className="flex-1 py-3 px-2.5">
