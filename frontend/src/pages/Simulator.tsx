@@ -11,6 +11,7 @@ import { useGender } from '../lib/genderContext'
 import { api } from '../lib/api'
 import type {
   PlayerIn,
+  PlayerProfile,
   PlayerSearchResult,
   SimulateResponse,
   TeamSummary,
@@ -20,12 +21,45 @@ import type {
   TossDecision,
 } from '../lib/api'
 
+// Fallback only — /player/search returns bio fields, not rating/role, so
+// this placeholder is replaced by addPlayerWithProfile() below once the
+// real profile loads. Used as-is only if that fetch fails (a genuine
+// debutant with no rating snapshot yet).
 function makePlayerIn(p: PlayerSearchResult): PlayerIn {
   return {
     player_id: p.player_id, name: p.name, role: 'pure_bat',
-    bat_rating: 0.5, bowl_rating: 0.5, is_keeper: p.is_keeper,
+    bat_rating: 0.5, bowl_rating: -50.0, is_keeper: p.is_keeper,
     is_overseas: false, bat_hand: p.bat_hand ?? 'R', bowl_type: p.bowl_type ?? 'none',
   }
+}
+
+function profileToPlayerIn(p: PlayerSearchResult, profile: PlayerProfile): PlayerIn {
+  return {
+    player_id: p.player_id, name: p.name, role: profile.role,
+    bat_rating: profile.bat_rating ?? 0.5, bowl_rating: profile.bowl_rating ?? -50.0,
+    is_keeper: p.is_keeper, is_overseas: false,
+    bat_hand: p.bat_hand ?? 'R', bowl_type: p.bowl_type ?? 'none',
+  }
+}
+
+// Adds the placeholder immediately for a responsive UI, then swaps in the
+// real rating/role once /player/{id} resolves — without this, every
+// player added via search carries an identical neutral rating into the
+// optimizer, regardless of their real ability data.
+function addPlayerWithProfile(
+  p: PlayerSearchResult,
+  format: string,
+  gender: Gender,
+  setTeam: (fn: (prev: PlayerIn[]) => PlayerIn[]) => void
+) {
+  setTeam(prev => [...prev, makePlayerIn(p)])
+  api.getPlayer(p.player_id, format, gender)
+    .then((profile: PlayerProfile) => {
+      setTeam(prev => prev.map(s => (s.player_id === p.player_id ? profileToPlayerIn(p, profile) : s)))
+    })
+    .catch(() => {
+      /* genuine debutant with no rating yet — keep the neutral placeholder */
+    })
 }
 
 function squadPlayerToPlayerIn(p: SquadPlayer): PlayerIn {
@@ -276,7 +310,7 @@ export default function Simulator() {
           <Card padding="md" className="flex-1">
             <TeamPanel
               label="Team 1" color="#e5a84b" team={team1} format={format} gender={gender}
-              onAdd={(p) => team1.length < 11 && setTeam1(prev => [...prev, makePlayerIn(p)])}
+              onAdd={(p) => team1.length < 11 && addPlayerWithProfile(p, format, gender, setTeam1)}
               onRemove={(id) => setTeam1(prev => prev.filter(p => p.player_id !== id))}
               onLoadTeam={setTeam1}
             />
@@ -284,7 +318,7 @@ export default function Simulator() {
           <Card padding="md" className="flex-1">
             <TeamPanel
               label="Team 2" color="#60a5fa" team={team2} format={format} gender={gender}
-              onAdd={(p) => team2.length < 11 && setTeam2(prev => [...prev, makePlayerIn(p)])}
+              onAdd={(p) => team2.length < 11 && addPlayerWithProfile(p, format, gender, setTeam2)}
               onRemove={(id) => setTeam2(prev => prev.filter(p => p.player_id !== id))}
               onLoadTeam={setTeam2}
             />

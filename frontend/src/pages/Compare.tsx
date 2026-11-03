@@ -8,7 +8,7 @@ import Input from '../components/ui/Input'
 import Skeleton from '../components/ui/Skeleton'
 import { useGender } from '../lib/genderContext'
 import { api } from '../lib/api'
-import type { PlayerIn, PlayerSearchResult, CompareResponse, TeamSummary, SquadPlayer, Gender } from '../lib/api'
+import type { PlayerIn, PlayerProfile, PlayerSearchResult, CompareResponse, TeamSummary, SquadPlayer, Gender } from '../lib/api'
 
 function squadPlayerToPlayerIn(p: SquadPlayer): PlayerIn {
   return {
@@ -19,12 +19,45 @@ function squadPlayerToPlayerIn(p: SquadPlayer): PlayerIn {
   }
 }
 
+// Fallback only — /player/search returns bio fields, not rating/role, so
+// this placeholder is replaced by addPlayerWithProfile() below once the
+// real profile loads. Used as-is only if that fetch fails (a genuine
+// debutant with no rating snapshot yet).
 function makePlayerIn(p: PlayerSearchResult): PlayerIn {
   return {
     player_id: p.player_id, name: p.name, role: 'pure_bat',
-    bat_rating: 0.5, bowl_rating: 0.5, is_keeper: p.is_keeper,
+    bat_rating: 0.5, bowl_rating: -50.0, is_keeper: p.is_keeper,
     is_overseas: false, bat_hand: p.bat_hand ?? 'R', bowl_type: p.bowl_type ?? 'none',
   }
+}
+
+function profileToPlayerIn(p: PlayerSearchResult, profile: PlayerProfile): PlayerIn {
+  return {
+    player_id: p.player_id, name: p.name, role: profile.role,
+    bat_rating: profile.bat_rating ?? 0.5, bowl_rating: profile.bowl_rating ?? -50.0,
+    is_keeper: p.is_keeper, is_overseas: false,
+    bat_hand: p.bat_hand ?? 'R', bowl_type: p.bowl_type ?? 'none',
+  }
+}
+
+// Adds the placeholder immediately for a responsive UI, then swaps in the
+// real rating/role once /player/{id} resolves — without this, every
+// player added via search carries an identical neutral rating into the
+// optimizer, regardless of their real ability data.
+function addPlayerWithProfile(
+  p: PlayerSearchResult,
+  format: string,
+  gender: Gender,
+  setTeam: (fn: (prev: PlayerIn[]) => PlayerIn[]) => void
+) {
+  setTeam(prev => [...prev, makePlayerIn(p)])
+  api.getPlayer(p.player_id, format, gender)
+    .then((profile: PlayerProfile) => {
+      setTeam(prev => prev.map(s => (s.player_id === p.player_id ? profileToPlayerIn(p, profile) : s)))
+    })
+    .catch(() => {
+      /* genuine debutant with no rating yet — keep the neutral placeholder */
+    })
 }
 
 function TeamPanel({ label, color, team, format, gender, onAdd, onRemove, onLoadTeam }: {
@@ -235,7 +268,7 @@ export default function Compare() {
           <Card padding="md">
             <TeamPanel
               label="XI Variant A" color="#e5a84b" team={teamA} format={format} gender={gender}
-              onAdd={(p) => teamA.length < 11 && setTeamA(prev => [...prev, makePlayerIn(p)])}
+              onAdd={(p) => teamA.length < 11 && addPlayerWithProfile(p, format, gender, setTeamA)}
               onRemove={(id) => setTeamA(prev => prev.filter(p => p.player_id !== id))}
               onLoadTeam={setTeamA}
             />
@@ -243,7 +276,7 @@ export default function Compare() {
           <Card padding="md">
             <TeamPanel
               label="XI Variant B" color="#60a5fa" team={teamB} format={format} gender={gender}
-              onAdd={(p) => teamB.length < 11 && setTeamB(prev => [...prev, makePlayerIn(p)])}
+              onAdd={(p) => teamB.length < 11 && addPlayerWithProfile(p, format, gender, setTeamB)}
               onRemove={(id) => setTeamB(prev => prev.filter(p => p.player_id !== id))}
               onLoadTeam={setTeamB}
             />
@@ -251,7 +284,7 @@ export default function Compare() {
           <Card padding="md">
             <TeamPanel
               label="Opponent" color="#a78bfa" team={opponent} format={format} gender={gender}
-              onAdd={(p) => opponent.length < 11 && setOpponent(prev => [...prev, makePlayerIn(p)])}
+              onAdd={(p) => opponent.length < 11 && addPlayerWithProfile(p, format, gender, setOpponent)}
               onRemove={(id) => setOpponent(prev => prev.filter(p => p.player_id !== id))}
               onLoadTeam={setOpponent}
             />

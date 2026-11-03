@@ -55,30 +55,169 @@ def _load_league_map() -> pd.DataFrame:
         if LEAGUE_MAP_PATH.exists():
             _league_map = pd.read_csv(LEAGUE_MAP_PATH)
         else:
-            _league_map = pd.DataFrame(
-                columns=["competition", "league_id", "format", "is_international"]
-            )
+            _league_map = pd.DataFrame(columns=["competition", "league_id", "format"])
     return _league_map
 
 
-def competition_to_league(competition: str, match_type: str) -> dict[str, str | bool]:
-    """Return {league_id, format, is_international} for a Cricsheet competition name."""
+def competition_to_league(competition: str, match_type: str) -> dict[str, str]:
+    """Return {league_id, format} for a Cricsheet competition name."""
     lm = _load_league_map()
     row = lm[lm["competition"] == competition]
     if not row.empty:
         r = row.iloc[0]
-        return {
-            "league_id": r["league_id"],
-            "format": r["format"],
-            "is_international": bool(r["is_international"]),
-        }
-    # Fallback: derive from match_type field in Cricsheet JSON
-    fmt = _infer_format(match_type)
-    return {
-        "league_id": _slugify(competition) or "unknown",
-        "format": fmt,
-        "is_international": False,
+        return {"league_id": r["league_id"], "format": r["format"]}
+    # Fallback: both men's and women's cricket have a long tail of
+    # competition names not worth enumerating (women's especially: 300+
+    # distinct strings, mostly one per bilateral tour), but league_id is
+    # cosmetic (a slug for display) and format comes straight off
+    # Cricsheet's own match_type field, so there's nothing to look up.
+    return {"league_id": _slugify(competition) or "unknown", "format": _infer_format(match_type)}
+
+
+# ── International vs. domestic ──────────────────────────────────────────────
+#
+# A match is international iff both teams are national sides, not whichever
+# competition they're playing in — competition-name matching was tried first
+# (league_map.csv's `is_international` column, plus a "contains 'women'"
+# fallback for the long tail of women's tour names) and was wrong for the
+# vast majority of matches: e.g. "ICC Champions Trophy", "NatWest Series"
+# and ordinary tour names like "Australia tour of India" never matched any
+# known string, so men's ODI showed just 5% international and men's Test
+# showed 0% — every Test match is international by definition. Team
+# identity is a far more robust signal and needs no enumeration of
+# competition names at all: it doesn't matter what a bilateral series or
+# a one-off tournament happens to be called, only whether the two sides
+# are national teams or domestic/franchise sides.
+#
+# Built directly from this project's own data (259 unique team names
+# across every format and gender currently parsed — see git history for
+# how), not a generic country list: it deliberately excludes domestic
+# sides that happen to share a sovereign nation's name (a cricket "country"
+# and a place name aren't the same thing here). "Barbados" plays only as
+# a West Indian regional/franchise side in this data (the sovereign nation
+# fields no separate international team — that's "West Indies"), so it's
+# left out despite being a real country; "Guernsey"/"Jersey"/"Gibraltar"/
+# "St Helena"/"Turks and Caicos Island" are kept in because each fields
+# its own ICC-affiliated national side. "Africa XI"/"Asia XI"/"ICC World
+# XI" are honorary multi-nation exhibition sides, not national teams, and
+# are deliberately excluded.
+COUNTRY_TEAMS: frozenset[str] = frozenset(
+    {
+        "Argentina",
+        "Australia",
+        "Austria",
+        "Bahamas",
+        "Bahrain",
+        "Bangladesh",
+        "Belgium",
+        "Belize",
+        "Bermuda",
+        "Bhutan",
+        "Botswana",
+        "Brazil",
+        "Bulgaria",
+        "Cambodia",
+        "Cameroon",
+        "Canada",
+        "Cayman Islands",
+        "Chile",
+        "China",
+        "Cook Islands",
+        "Costa Rica",
+        "Croatia",
+        "Cyprus",
+        "Czech Republic",
+        "Denmark",
+        "England",
+        "Estonia",
+        "Eswatini",
+        "Fiji",
+        "Finland",
+        "France",
+        "Gambia",
+        "Germany",
+        "Ghana",
+        "Gibraltar",
+        "Greece",
+        "Guernsey",
+        "Hong Kong",
+        "Hungary",
+        "India",
+        "Indonesia",
+        "Iran",
+        "Ireland",
+        "Isle of Man",
+        "Israel",
+        "Italy",
+        "Ivory Coast",
+        "Japan",
+        "Jersey",
+        "Kenya",
+        "Kuwait",
+        "Lesotho",
+        "Luxembourg",
+        "Malawi",
+        "Malaysia",
+        "Maldives",
+        "Mali",
+        "Malta",
+        "Mexico",
+        "Mongolia",
+        "Mozambique",
+        "Myanmar",
+        "Namibia",
+        "Nepal",
+        "Netherlands",
+        "New Zealand",
+        "Nigeria",
+        "Norway",
+        "Oman",
+        "Pakistan",
+        "Panama",
+        "Papua New Guinea",
+        "Peru",
+        "Philippines",
+        "Portugal",
+        "Qatar",
+        "Romania",
+        "Rwanda",
+        "Samoa",
+        "Saudi Arabia",
+        "Scotland",
+        "Serbia",
+        "Seychelles",
+        "Sierra Leone",
+        "Singapore",
+        "Slovenia",
+        "South Africa",
+        "South Korea",
+        "Spain",
+        "Sri Lanka",
+        "St Helena",
+        "Suriname",
+        "Swaziland",
+        "Sweden",
+        "Switzerland",
+        "Tanzania",
+        "Thailand",
+        "Timor-Leste",
+        "Turkey",
+        "Turks and Caicos Island",
+        "Uganda",
+        "United Arab Emirates",
+        "United States of America",
+        "Uzbekistan",
+        "Vanuatu",
+        "West Indies",
+        "Zambia",
+        "Zimbabwe",
     }
+)
+
+
+def is_international_match(team1: str, team2: str) -> bool:
+    """True iff both sides are national teams (see COUNTRY_TEAMS above)."""
+    return team1 in COUNTRY_TEAMS and team2 in COUNTRY_TEAMS
 
 
 def _infer_format(match_type: str) -> str:

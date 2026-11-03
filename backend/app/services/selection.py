@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from functools import lru_cache
 from pathlib import Path
 
@@ -37,16 +36,6 @@ def load_snapshots(fmt: str = "t20", gender: str = "male") -> pd.DataFrame | Non
     return None
 
 
-@lru_cache(maxsize=8)
-def load_backtest_metrics(fmt: str = "t20", gender: str = "male") -> dict | None:
-    path = ROOT / "data" / "processed" / "metrics" / f"backtest_{fmt}_{gender}.json"
-    if not path.exists():
-        path = ROOT / "data" / "processed" / "metrics" / "backtest.json"
-    if path.exists():
-        return json.loads(path.read_text())
-    return None
-
-
 def get_player_profile(player_id: str, fmt: str = "t20", gender: str = "male") -> dict | None:
     meta = load_player_meta()
     row = meta[meta["player_id"] == player_id]
@@ -69,7 +58,7 @@ def get_player_profile(player_id: str, fmt: str = "t20", gender: str = "male") -
         if not r.empty:
             latest = r.sort_values("snapshot_month").iloc[-1]
             profile["bat_rating"] = float(latest.get("bat_rating", 0.5))
-            profile["bowl_rating"] = float(latest.get("bowl_rating", 0.5))
+            profile["bowl_rating"] = float(latest.get("bowl_rating", -50.0))
             profile["role"] = str(latest.get("role", "pure_bat"))
 
     snaps = load_snapshots(fmt, gender)

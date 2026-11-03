@@ -21,7 +21,12 @@ from typing import Any
 import pandas as pd
 import pandera.pandas as pa
 
-from ml.ingest.normalize import competition_to_league, encode_outcome, venue_to_id
+from ml.ingest.normalize import (
+    competition_to_league,
+    encode_outcome,
+    is_international_match,
+    venue_to_id,
+)
 from ml.ingest.schemas import (
     BallSchema,
     InningsSchema,
@@ -79,6 +84,8 @@ def parse_match(
 
     league_info = competition_to_league(competition, match_type)
     teams: list[str] = info.get("teams", ["", ""])
+    team1 = teams[0] if len(teams) > 0 else ""
+    team2 = teams[1] if len(teams) > 1 else ""
     toss = info.get("toss", {})
     outcome = info.get("outcome", {})
 
@@ -98,10 +105,10 @@ def parse_match(
         "competition": competition,
         "league_id": league_info["league_id"],
         "format": league_info["format"],
-        "is_international": league_info["is_international"],
+        "is_international": is_international_match(team1, team2),
         "venue_id": venue_to_id(info.get("venue")),
-        "team1": teams[0] if len(teams) > 0 else "",
-        "team2": teams[1] if len(teams) > 1 else "",
+        "team1": team1,
+        "team2": team2,
         "toss_winner": toss.get("winner"),
         "toss_decision": toss.get("decision"),
         "winner": winner,

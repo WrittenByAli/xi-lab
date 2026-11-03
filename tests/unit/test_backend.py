@@ -53,7 +53,21 @@ def test_recommend_basic():
     assert len(data["xi"]) == 11
     assert "batting_order" in data
     assert "bowling_plan" in data
-    assert 0 <= data["win_prob"] <= 10
+    # No opponent given -> the no-opponent heuristic evaluate_fn in
+    # ml.optimize.selector.select_xi, which must stay a real probability
+    # (it used to return an unnormalized raw bat+bowl rating sum, which
+    # could be far outside [0,1] and get reported to users as "win_prob").
+    assert 0 <= data["win_prob"] <= 1
+    assert data["warnings"] == []
+
+
+def test_recommend_without_any_keeper_warns():
+    squad = [p for p in _make_squad(15) if not p["is_keeper"]]
+    r = client.post("/recommend", json={"squad": squad, "format": "t20"})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["xi"]) == 11
+    assert any("keeper" in w.lower() for w in data["warnings"])
 
 
 def test_recommend_too_few_players():
@@ -217,3 +231,11 @@ def test_compare_basic():
     assert "team_a_wp" in data
     assert "team_b_wp" in data
     assert data["ci_lower"] <= data["delta_wp"] <= data["ci_upper"]
+    # delta_wp/team_*_wp must be actual probabilities (a full match was
+    # simulated), not a projected mean score standing in for one — the
+    # pre-fix version returned e.g. delta_wp=1.49 from comparing projected
+    # 1st-innings run totals with no opponent chase simulated at all.
+    assert -1.0 <= data["delta_wp"] <= 1.0
+    assert 0.0 <= data["team_a_wp"] <= 1.0
+    assert 0.0 <= data["team_b_wp"] <= 1.0
+    assert data["delta_wp"] == pytest.approx(data["team_a_wp"] - data["team_b_wp"], abs=0.05)

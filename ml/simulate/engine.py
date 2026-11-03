@@ -73,18 +73,6 @@ def _get_phase(over: int, phases: list[tuple[int, int]], phase_names: list[str])
     return phase_names[-1]
 
 
-def _combine_probs(
-    bat_probs: np.ndarray,
-    bowl_probs: np.ndarray,
-    alpha: float = 0.5,
-) -> np.ndarray:
-    """Blend batter and bowler outcome distributions."""
-    combined = alpha * bat_probs + (1 - alpha) * bowl_probs
-    combined = np.maximum(combined, 1e-8)
-    combined /= combined.sum()
-    return combined
-
-
 def _assign_bowlers(
     attack: list[BowlingCard],
     total_overs: int,
@@ -104,6 +92,9 @@ def _assign_bowlers(
     return assignments
 
 
+_UNIFORM9 = np.ones(9) / 9
+
+
 def simulate_innings(
     ctx: MatchContext,
     n_sims: int = 10000,
@@ -112,9 +103,17 @@ def simulate_innings(
     """
     Simulate n_sims independent innings.
 
-    Uses vectorized operations: at each ball, all N sims advance together.
-    The outcome for each sim is sampled from the combined batter×bowler
-    probability vector using pre-drawn uniform random numbers (CRN).
+    Uses vectorized operations: at each ball, all N sims advance together
+    via numpy array ops over the whole (n_sims,) state, not a per-sim
+    Python loop. (An earlier version of this function claimed that in its
+    docstring but actually looped over every sim at every delivery —
+    e.g. ~3.4M scalar Python iterations for a 10,000-sim ODI evaluation —
+    which was the main reason recommend/simulate/backtest/publish were all
+    slow. This version does the same math as array ops instead: gathering
+    each sim's current batter's probability row, blending, and sampling
+    from the row-wise CDF all at once.) The outcome for each sim is
+    sampled from the combined batter×bowler probability vector using
+    pre-drawn uniform random numbers (CRN).
     """
     if rng is None:
         rng = np.random.default_rng()
@@ -143,57 +142,60 @@ def simulate_innings(
         if not active.any():
             break
 
-        current_over = np.zeros(n_sims, dtype=np.int32)
-        for s_idx in range(n_sims):
-            if active[s_idx]:
-                current_over[s_idx] = min(legal_balls[s_idx] // 6, ctx.total_overs - 1)
+        # Sims that take a ball this delivery — captured before any state
+        # change below, so every update this iteration is gated on the
+        # same set (matches what the old per-sim loop's `if not active:
+        # continue` guard did for each sim individually).
+        acted = active
 
-        representative_over = int(np.median(current_over[active]))
+        current_over = np.minimum(legal_balls // 6, ctx.total_overs - 1)
+        representative_over = int(np.median(current_over[acted]))
         phase_name = _get_phase(representative_over, ctx.phases, ctx.phase_names)
 
         bowler_idx = bowler_assignments[min(representative_over, len(bowler_assignments) - 1)]
         bowler = ctx.bowling_attack[bowler_idx]
+        bowl_probs = bowler.probs_by_phase.get(phase_name, bowler.probs_by_phase.get("middle", _UNIFORM9))
 
-        for s_idx in range(n_sims):
-            if not active[s_idx]:
-                continue
+        # Every possible batter's probs for this phase, gathered once
+        # (max_batters is ~11, not n_sims) and then indexed per-sim by
+        # whichever batter that sim currently has at the crease.
+        bat_probs_by_slot = np.stack(
+            [
+                b.probs_by_phase.get(phase_name, b.probs_by_phase.get("middle", _UNIFORM9))
+                for b in ctx.batting_order
+            ]
+        )
+        safe_batter_idx = np.minimum(batter_idx, max_batters - 1)
+        bat_probs = bat_probs_by_slot[safe_batter_idx]  # (n_sims, 9)
 
-            b_idx = batter_idx[s_idx]
-            if b_idx >= max_batters:
-                active[s_idx] = False
-                continue
+        combined = 0.5 * bat_probs + 0.5 * bowl_probs
+        combined = np.maximum(combined, 1e-8)
+        combined /= combined.sum(axis=1, keepdims=True)
 
-            batter = ctx.batting_order[b_idx]
-            bat_probs = batter.probs_by_phase.get(
-                phase_name, batter.probs_by_phase.get("middle", np.ones(9) / 9)
-            )
-            bowl_probs = bowler.probs_by_phase.get(
-                phase_name, bowler.probs_by_phase.get("middle", np.ones(9) / 9)
-            )
-            combined = _combine_probs(bat_probs, bowl_probs)
+        cumprobs = np.cumsum(combined, axis=1)
+        # Row-wise equivalent of np.searchsorted(cumprobs[i], u[i]) for
+        # every sim at once: searchsorted's left-insertion index equals
+        # the count of CDF entries strictly below u (a standard identity
+        # for sorted arrays), which vectorizes as a broadcast compare+sum.
+        outcome_idx = np.sum(cumprobs < uniforms[delivery][:, None], axis=1)
+        outcome_idx = np.minimum(outcome_idx, 8)
 
-            cumprobs = np.cumsum(combined)
-            outcome_idx = np.searchsorted(cumprobs, uniforms[delivery, s_idx])
-            outcome_idx = min(outcome_idx, 8)
+        runs = OUTCOME_RUNS[outcome_idx]
+        is_wicket = OUTCOME_IS_WICKET[outcome_idx].astype(bool)
+        is_legal = OUTCOME_IS_LEGAL[outcome_idx].astype(bool)
 
-            scores[s_idx] += OUTCOME_RUNS[outcome_idx]
-            if OUTCOME_IS_LEGAL[outcome_idx]:
-                legal_balls[s_idx] += 1
+        scores += np.where(acted, runs, 0)
+        legal_balls += np.where(acted & is_legal, 1, 0)
+        wickets += np.where(acted & is_wicket, 1, 0)
+        batter_idx += np.where(acted & is_wicket, 1, 0)
 
-            if OUTCOME_IS_WICKET[outcome_idx]:
-                wickets[s_idx] += 1
-                batter_idx[s_idx] += 1
-                if batter_idx[s_idx] >= max_batters:
-                    active[s_idx] = False
+        active = acted & (batter_idx < max_batters) & (legal_balls < max_legal_balls)
 
-            if legal_balls[s_idx] >= max_legal_balls:
-                active[s_idx] = False
-
-            if ctx.target is not None and chased is not None:
-                sim_target = target_per_sim[s_idx] if target_per_sim is not None else ctx.target
-                if scores[s_idx] >= sim_target:
-                    chased[s_idx] = True
-                    active[s_idx] = False
+        if ctx.target is not None and chased is not None:
+            sim_target = target_per_sim if target_per_sim is not None else ctx.target
+            reached = acted & (scores >= sim_target)
+            chased |= reached
+            active &= ~reached
 
     return SimResult(
         scores=scores,
@@ -253,21 +255,3 @@ def simulate_match(
         "team1_wickets_mean": float(inn1.wickets.mean()),
         "team2_wickets_mean": float(team2_wickets.mean()),
     }
-
-
-def win_probability(
-    team_ctx: MatchContext,
-    opponent_bowling: list[BowlingCard],
-    opponent_batting: list[BattingCard],
-    n_sims: int = 10000,
-    crn_seed: int = 0,
-) -> float:
-    """Quick win probability for team batting first."""
-    result = simulate_match(
-        team1_ctx=team_ctx,
-        team2_batting=opponent_batting,
-        team2_bowling=opponent_bowling,
-        n_sims=n_sims,
-        crn_seed=crn_seed,
-    )
-    return result["team1_win_prob"] + result["tie_prob"] * 0.5

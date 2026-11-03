@@ -47,9 +47,14 @@ parse:
 
 # ── Pipeline stages ──────────────────────────────────────────────────────────
 # Each stage runs for every (format, gender) combination with real data.
-# Test-format gets ability ratings only for both genders (mirrors existing
-# men's scope — no ball/policy/backtest model for test, and women's test data
-# is only 24 matches, too sparse for the date-based train/val/test split).
+# Test-format trains ball/policy models for both genders same as t20/odi —
+# women's Test data (24 matches total) is enough for those. The backtest
+# step is the exception: it needs a date-split validation set to calibrate
+# a logistic fit, and women's Test only has 3 matches in that window — below
+# the number of parameters being fit. `ml.evaluate.backtest` detects this
+# itself (val_matches < 2x feature count) and reports `insufficient_data`
+# rather than a miscalibrated score, so it's simply not in the `backtest`
+# target below.
 features:
 	python ml/features/snapshots.py
 
@@ -64,14 +69,18 @@ train-ability:
 train-ball:
 	python -m ml.models.ball.train --format t20 --gender male
 	python -m ml.models.ball.train --format odi --gender male
+	python -m ml.models.ball.train --format test --gender male
 	python -m ml.models.ball.train --format t20 --gender female
 	python -m ml.models.ball.train --format odi --gender female
+	python -m ml.models.ball.train --format test --gender female
 
 train-policies:
 	python -m ml.models.policies.train --format t20 --gender male
 	python -m ml.models.policies.train --format odi --gender male
+	python -m ml.models.policies.train --format test --gender male
 	python -m ml.models.policies.train --format t20 --gender female
 	python -m ml.models.policies.train --format odi --gender female
+	python -m ml.models.policies.train --format test --gender female
 
 train: train-ability train-ball train-policies
 
@@ -81,8 +90,10 @@ simulate-validate:
 backtest:
 	python -m ml.evaluate.backtest --format t20 --gender male
 	python -m ml.evaluate.backtest --format odi --gender male
+	python -m ml.evaluate.backtest --format test --gender male
 	python -m ml.evaluate.backtest --format t20 --gender female
 	python -m ml.evaluate.backtest --format odi --gender female
+	python -m ml.evaluate.backtest --format test --gender female
 
 # ── Serving ───────────────────────────────────────────────────────────────────
 serve:

@@ -4,24 +4,31 @@ on:
   workflow_dispatch:
     inputs:
       team:
-        description: "Team code (e.g. PAK, IND, AUS)"
+        description: "Team name exactly as it appears in match data (e.g. India, Australia, Pakistan)"
         required: true
       opponent:
-        description: "Opponent code"
+        description: "Opponent name, same convention as team"
         required: true
       venue:
         description: "Venue canonical name"
         required: true
       format:
-        description: "Format: t20i | odi | test"
+        description: "Format: t20 | odi | test"
         required: true
-        default: t20i
+        default: t20
       match_date:
         description: "Match date YYYY-MM-DD"
         required: true
       squad:
-        description: "Comma-separated player IDs from squad announcement"
+        description: "Comma-separated player IDs (Cricsheet batter/bowler names) from squad announcement"
         required: true
+      toss_decision:
+        description: "Toss decision if known: bat | bowl (leave blank if undecided)"
+        required: false
+      pitch_condition:
+        description: "Pitch condition: auto | dry | green | flat | dusty"
+        required: false
+        default: auto
 
 jobs:
   predict:
@@ -47,6 +54,8 @@ jobs:
             --format "${{ github.event.inputs.format }}" \
             --date "${{ github.event.inputs.match_date }}" \
             --squad "${{ github.event.inputs.squad }}" \
+            ${{ github.event.inputs.toss_decision != '' && format('--toss-decision {0}', github.event.inputs.toss_decision) || '' }} \
+            --pitch-condition "${{ github.event.inputs.pitch_condition }}" \
             --out live/predictions/${{ github.event.inputs.team }}_vs_${{ github.event.inputs.opponent }}_${{ github.event.inputs.match_date }}.json
       - name: Commit and tag prediction
         run: |

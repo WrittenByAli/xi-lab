@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, Zap, GripVertical, Users, ChevronDown, X, Search, ArrowRightLeft } from 'lucide-react'
+import { Plus, Trash2, Zap, GripVertical, Users, ChevronDown, X, Search, ArrowRightLeft, AlertTriangle } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import Card, { CardTitle } from '../components/ui/Card'
 import Badge, { roleBadgeVariant, roleLabel } from '../components/ui/Badge'
@@ -13,6 +13,7 @@ import { useGender } from '../lib/genderContext'
 import { api } from '../lib/api'
 import type {
   PlayerIn,
+  PlayerProfile,
   PlayerSearchResult,
   RecommendResponse,
   TeamSummary,
@@ -21,13 +22,31 @@ import type {
   TossDecision,
 } from '../lib/api'
 
+// Fallback only — used if the profile fetch below fails (e.g. a genuine
+// debutant with no rating snapshot yet). The search endpoint itself never
+// returns rating/role (it's a lightweight name lookup over bio data), so
+// this must never be used as the default path for a searched player.
 function makePlayerIn(p: PlayerSearchResult): PlayerIn {
   return {
     player_id: p.player_id,
     name: p.name,
     role: 'pure_bat',
     bat_rating: 0.5,
-    bowl_rating: 0.5,
+    bowl_rating: -50.0,
+    is_keeper: p.is_keeper,
+    is_overseas: false,
+    bat_hand: p.bat_hand ?? 'R',
+    bowl_type: p.bowl_type ?? 'none',
+  }
+}
+
+function profileToPlayerIn(p: PlayerSearchResult, profile: PlayerProfile): PlayerIn {
+  return {
+    player_id: p.player_id,
+    name: p.name,
+    role: profile.role,
+    bat_rating: profile.bat_rating ?? 0.5,
+    bowl_rating: profile.bowl_rating ?? -50.0,
     is_keeper: p.is_keeper,
     is_overseas: false,
     bat_hand: p.bat_hand ?? 'R',
@@ -124,9 +143,22 @@ export default function SquadBuilder() {
 
   const addPlayer = (p: PlayerSearchResult) => {
     if (squad.some(s => s.player_id === p.player_id)) return
-    setSquad(prev => [...prev, makePlayerIn(p)])
     setSearchQ('')
     setSearchResults([])
+    // Placeholder first so the UI responds immediately, then replaced with
+    // the real rating/role once the profile fetch resolves — /player/search
+    // only returns bio fields, so without this every searched player would
+    // carry an identical neutral rating into the optimizer.
+    setSquad(prev => [...prev, makePlayerIn(p)])
+    api.getPlayer(p.player_id, format, gender)
+      .then((profile: PlayerProfile) => {
+        setSquad(prev =>
+          prev.map(s => (s.player_id === p.player_id ? profileToPlayerIn(p, profile) : s))
+        )
+      })
+      .catch(() => {
+        /* genuine debutant with no rating yet — keep the neutral placeholder */
+      })
   }
 
   const removePlayer = (id: string) => {
@@ -347,11 +379,25 @@ export default function SquadBuilder() {
                 <div className="text-center">
                   <div className="text-[11px] uppercase tracking-wider text-accent/70">Win Probability</div>
                   <div className="stat text-3xl font-bold text-accent mt-1">
-                    {(result.win_prob * (result.win_prob > 1 ? 1 : 100)).toFixed(1)}
+                    {(result.win_prob * 100).toFixed(1)}
                     <span className="text-lg ml-0.5">%</span>
                   </div>
                 </div>
               </Card>
+
+              {/* Warnings */}
+              {result.warnings.length > 0 && (
+                <Card className="bg-amber-500/10 border-amber-500/30">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                    <div className="space-y-1">
+                      {result.warnings.map((w, i) => (
+                        <div key={i} className="text-[13px] text-amber-200/90 leading-snug">{w}</div>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               {/* Selected XI */}
               <div>

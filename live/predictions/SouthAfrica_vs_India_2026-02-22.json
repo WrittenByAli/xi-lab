@@ -1,0 +1,168 @@
+{
+  "team": "South Africa",
+  "opponent": "India",
+  "venue": "narendra_modi_stadium_ahmedabad",
+  "format": "t20",
+  "gender": "male",
+  "match_date": "2026-02-22",
+  "toss_decision": "bat",
+  "pitch_condition": "auto",
+  "context_aware": true,
+  "generated_at": "2026-11-03T13:16:33.737272Z",
+  "model_hash": "c71afb519675",
+  "xi": [
+    {
+      "player_id": "A Nortje",
+      "name": "Anrich Nortje",
+      "role": "bowl_allrounder",
+      "bat_rating": 64.8006,
+      "bowl_rating": -12.4983
+    },
+    {
+      "player_id": "AK Markram",
+      "name": "Aiden Markram",
+      "role": "bat_allrounder",
+      "bat_rating": 96.2669,
+      "bowl_rating": -14.27
+    },
+    {
+      "player_id": "C Bosch",
+      "name": "Corbin Bosch",
+      "role": "bat_allrounder",
+      "bat_rating": 75.8034,
+      "bowl_rating": -15.6926
+    },
+    {
+      "player_id": "D Brevis",
+      "name": "D Brevis",
+      "role": "pure_bat",
+      "bat_rating": 87.4004,
+      "bowl_rating": -15.3084
+    },
+    {
+      "player_id": "K Rabada",
+      "name": "Kagiso Rabada",
+      "role": "bat_allrounder",
+      "bat_rating": 70.8305,
+      "bowl_rating": -12.8423
+    },
+    {
+      "player_id": "KA Maharaj",
+      "name": "Keshav Maharaj",
+      "role": "bat_allrounder",
+      "bat_rating": 74.4507,
+      "bowl_rating": -16.9826
+    },
+    {
+      "player_id": "L Ngidi",
+      "name": "Lungi Ngidi",
+      "role": "pure_bowl",
+      "bat_rating": 57.7276,
+      "bowl_rating": -12.066
+    },
+    {
+      "player_id": "M Jansen",
+      "name": "Marco Jansen",
+      "role": "bat_allrounder",
+      "bat_rating": 88.2326,
+      "bowl_rating": -14.3688
+    },
+    {
+      "player_id": "Q de Kock",
+      "name": "Quinton de Kock",
+      "role": "keeper_bat",
+      "bat_rating": 98.9274,
+      "bowl_rating": -16.5709
+    },
+    {
+      "player_id": "RD Rickelton",
+      "name": "Ryan Rickelton",
+      "role": "keeper_bat",
+      "bat_rating": 78.9534,
+      "bowl_rating": -16.5709
+    },
+    {
+      "player_id": "T Stubbs",
+      "name": "Tristan Stubbs",
+      "role": "keeper_bat",
+      "bat_rating": 89.6335,
+      "bowl_rating": -15.3393
+    }
+  ],
+  "win_prob": 0.3742,
+  "batting_order": [
+    "Q de Kock",
+    "AK Markram",
+    "T Stubbs",
+    "M Jansen",
+    "D Brevis",
+    "RD Rickelton",
+    "C Bosch",
+    "KA Maharaj",
+    "K Rabada",
+    "A Nortje",
+    "L Ngidi"
+  ],
+  "bowling_plan": {
+    "L Ngidi": 4,
+    "A Nortje": 4,
+    "K Rabada": 4,
+    "AK Markram": 4,
+    "M Jansen": 4
+  },
+  "tie_set": [],
+  "swap_matrix": {
+    "DA Miller": {
+      "A Nortje": 0.0,
+      "AK Markram": 0.0,
+      "C Bosch": 0.0,
+      "D Brevis": 0.04,
+      "K Rabada": 0.04,
+      "KA Maharaj": 0.04,
+      "L Ngidi": 0.0,
+      "M Jansen": 0.04,
+      "Q de Kock": 0.0,
+      "RD Rickelton": 0.0,
+      "T Stubbs": 0.04
+    },
+    "GF Linde": {
+      "A Nortje": 0.02,
+      "AK Markram": 0.02,
+      "C Bosch": 0.0,
+      "D Brevis": 0.0,
+      "K Rabada": 0.0,
+      "KA Maharaj": 0.02,
+      "L Ngidi": 0.0,
+      "M Jansen": 0.04,
+      "Q de Kock": 0.0,
+      "RD Rickelton": 0.0,
+      "T Stubbs": 0.04
+    },
+    "JF Smith": {
+      "A Nortje": 0.0,
+      "AK Markram": 0.0,
+      "C Bosch": 0.0,
+      "D Brevis": 0.0,
+      "K Rabada": 0.0,
+      "KA Maharaj": 0.0,
+      "L Ngidi": 0.0,
+      "M Jansen": 0.0,
+      "Q de Kock": 0.0,
+      "RD Rickelton": 0.0,
+      "T Stubbs": 0.04
+    },
+    "KT Maphaka": {
+      "A Nortje": 0.0,
+      "AK Markram": 0.0,
+      "C Bosch": 0.0,
+      "D Brevis": 0.0,
+      "K Rabada": 0.0,
+      "KA Maharaj": 0.0,
+      "L Ngidi": 0.0,
+      "M Jansen": 0.04,
+      "Q de Kock": 0.0,
+      "RD Rickelton": 0.0,
+      "T Stubbs": 0.0
+    }
+  }
+}

@@ -97,7 +97,7 @@ def _build_opponent_evaluate_fn(req: RecommendRequest, opponent_team: str, squad
                 "bat_hand": p.get("bat_hand", "R"),
                 "bowl_type": p.get("bowl_type", "none"),
                 "bat_rating": p.get("bat_rating", 0.5),
-                "bowl_rating": p.get("bowl_rating", -0.5),
+                "bowl_rating": p.get("bowl_rating", -50.0),
             },
             p["player_id"],
             req.format,
@@ -164,6 +164,20 @@ def recommend(req: RecommendRequest):
 
     result = select_xi(squad, evaluate_fn=evaluate_fn, max_overseas=req.max_overseas)
 
+    # select_xi's "at least 1 keeper" constraint is infeasible when the
+    # squad itself has no one flagged is_keeper — PuLP reports that as
+    # LpStatusInfeasible for every candidate, generate_candidate_xis then
+    # falls back to a greedy selection that silently skips the keeper slot
+    # rather than failing outright (so recommend() always returns *some*
+    # XI). That's reasonable degradation, but silently fielding a team
+    # with no keeper is worth surfacing rather than hiding.
+    warnings = []
+    if not any(p.is_keeper for p in squad):
+        warnings.append(
+            "No recognized wicketkeeper in this squad — the recommended XI has none. "
+            "Add a specialist keeper to the squad for a fieldable team."
+        )
+
     xi_out = [
         PlayerSummary(
             player_id=p.player_id,
@@ -184,4 +198,5 @@ def recommend(req: RecommendRequest):
         bowling_plan=result.bowling_plan,
         tie_set=result.tie_set,
         swap_matrix=result.swap_matrix,
+        warnings=warnings,
     )

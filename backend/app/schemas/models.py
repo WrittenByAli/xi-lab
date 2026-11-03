@@ -10,7 +10,14 @@ class PlayerIn(BaseModel):
     name: str
     role: str = "pure_bat"
     bat_rating: float = 0.5
-    bowl_rating: float = 0.5
+    # -50.0 is the conservative "unknown bowler" sentinel (matches
+    # ml.simulate.cards._norm_bowl's floor — raw bowl_rating <= -50
+    # normalizes to 0, i.e. assume non-bowler when there's no data),
+    # not a real ability-model output. bowl_rating is always negative
+    # in practice (see ml/models/ability/train.py), so a value near
+    # zero would — now that _norm_bowl's sign is fixed — normalize as
+    # the *best* possible bowler, which is wrong for "we don't know".
+    bowl_rating: float = -50.0
     is_keeper: bool = False
     is_overseas: bool = False
     bat_hand: str = "R"
@@ -46,6 +53,7 @@ class RecommendResponse(BaseModel):
     bowling_plan: dict[str, int]
     tie_set: list[list[str]]
     swap_matrix: dict[str, dict[str, float]]
+    warnings: list[str] = Field(default_factory=list)
 
 
 class SimulateRequest(BaseModel):

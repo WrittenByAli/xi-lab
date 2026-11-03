@@ -355,6 +355,12 @@ def main():
     matches = pd.read_parquet(matches_path)
     snapshots = pd.read_parquet(snapshots_path)
 
+    # Test cricket has no 4th-innings target in Cricsheet's schema, so
+    # rrr_before is all-null there and pandas infers `object` dtype, which
+    # LightGBM rejects. Force it back to float (all-NaN is a valid LightGBM
+    # column — the model just learns to ignore it for this format).
+    balls["rrr_before"] = pd.to_numeric(balls["rrr_before"], errors="coerce")
+
     print(f"  Balls: {len(balls):,} rows")
     print(f"  Matches: {len(matches):,} rows")
     print(f"  Snapshots: {len(snapshots):,} rows")

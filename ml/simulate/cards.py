@@ -46,7 +46,6 @@ from ml.simulate.pitch import OUTCOME_CLASSES, apply_pitch_adjustment
 ROOT = Path(__file__).resolve().parents[2]
 MODELS_DIR = ROOT / "data" / "processed" / "models" / "ball"
 METRICS_DIR = ROOT / "data" / "processed" / "metrics"
-SNAPSHOTS_DIR = ROOT / "data" / "processed" / "snapshots"
 
 # Representative phase names the ball model was trained with (hardcoded in
 # ball/train.py's feature list regardless of format — a pre-existing
@@ -92,32 +91,6 @@ def load_ball_model(fmt: str, gender: str) -> BallModelBundle | None:
         categorical_features=meta.get("categorical_features", CATEGORICAL_FEATURES),
         outcome_classes=meta.get("outcome_classes", []),
     )
-
-
-@lru_cache(maxsize=8)
-def league_average_snapshot(fmt: str, gender: str) -> dict[str, float] | None:
-    """Mean of the latest month's batter/bowler snapshot features.
-
-    Used as the "generic opponent" when no specific opponent is selected.
-    """
-    path = SNAPSHOTS_DIR / fmt / gender / "snapshots.parquet"
-    if not path.exists():
-        return None
-    df = pd.read_parquet(path, columns=None)
-    latest = df[df["snapshot_month"] == df["snapshot_month"].max()]
-    cols = [c for c in BATTER_SNAPSHOT_FEATURES + BOWLER_SNAPSHOT_FEATURES if c in latest.columns]
-    if not cols:
-        return None
-    return latest[cols].mean(numeric_only=True).to_dict()
-
-
-def average_snapshot_rows(rows: list[dict]) -> dict[str, float]:
-    """Mean snapshot features across a specific set of players (an opponent XI)."""
-    if not rows:
-        return {}
-    df = pd.DataFrame(rows)
-    cols = [c for c in BATTER_SNAPSHOT_FEATURES + BOWLER_SNAPSHOT_FEATURES if c in df.columns]
-    return df[cols].mean(numeric_only=True).to_dict()
 
 
 def _encode(bundle: BallModelBundle, col: str, value: object) -> int | float:
@@ -203,7 +176,19 @@ def _norm_bat(raw: float) -> float:
 
 
 def _norm_bowl(raw: float) -> float:
-    return float(np.clip((-raw - 10) / 40, 0, 1))
+    # bowl_rating = -(shrunk economy + shrunk strike rate)/2, so LESS
+    # negative is better (an elite bowler's economy/strike-rate are both
+    # low, making the negated sum small in magnitude) — a non-bowler
+    # shrunk toward their role group's prior lands much more negative
+    # (e.g. a keeper who's bowled a handful of emergency overs averages a
+    # poor economy/strike-rate, pulling bowl_rating well below -50).
+    # Empirically (data/processed/models/ability/male/ratings.parquet):
+    # elite bowlers sit around -8 to -12 (99th percentile ~-10.5), the bulk
+    # of specialist bowlers in the -15 to -20 range, and non-bowling
+    # specialists trail off past -50 to -100+. This must increase as raw
+    # increases — the previous version did the opposite, so it ranked
+    # non-bowlers as better bowlers than frontline strike bowlers.
+    return float(np.clip((raw + 50) / 40, 0, 1))
 
 
 def _heuristic_cards(player: dict, phase_names: list[str]) -> tuple[np.ndarray, np.ndarray]:
@@ -211,7 +196,7 @@ def _heuristic_cards(player: dict, phase_names: list[str]) -> tuple[np.ndarray, 
     used when no trained ball model exists for this (format, gender).
     """
     br = _norm_bat(float(player.get("bat_rating", 0.5)))
-    wr = _norm_bowl(float(player.get("bowl_rating", -0.5)))
+    wr = _norm_bowl(float(player.get("bowl_rating", -50.0)))
 
     bat_probs = _DEFAULT_PROBS.copy()
     bat_probs[0] = max(0.05, 0.40 - br * 0.1)

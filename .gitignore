@@ -35,6 +35,14 @@ data/processed/
 # Models artifacts — tracked by DVC (not ml/models/ source code)
 /models/
 
+# Downloaded Cricsheet player registry + generated coverage reports —
+# regenerate with `python ml/ingest/download.py` / `ml/ingest/coverage.py`.
+# Hand-maintained reference files (player_meta.csv, venue_map.csv, etc.)
+# are not matched by these and stay tracked.
+data/reference/people.csv
+data/reference/names.csv
+data/reference/coverage_missing_*.csv
+
 # MLflow
 mlruns/
 mlflow.db

@@ -34,6 +34,34 @@ ROOT = Path(__file__).resolve().parents[2]
 PARAMS = yaml.safe_load((ROOT / "params.yaml").read_text())
 
 
+# _norm_bat/_norm_bowl mirror ml.simulate.cards's functions of the same
+# name (duplicated rather than imported, since cards.py pulls in LightGBM
+# and the whole simulate stack just for two one-line functions).
+#
+# bat_rating and bowl_rating are not on comparable scales (bat ~0-170,
+# bowl ~-8 to -110, LESS negative being better — bowl_rating is
+# -(shrunk economy + shrunk strike rate)/2, so an elite bowler's low
+# econ/strike-rate keeps it small in magnitude, while a non-bowler
+# shrunk toward their role group's poor-emergency-over prior lands much
+# more negative). An ILP objective over the raw sum is dominated by
+# bat_rating — it credits a batting all-rounder's modest bowling more
+# than it credits a genuine strike bowler's weak batting hurts them, and
+# in practice dropped Bumrah, Shami and the specialist opener entirely
+# from a recommended India ODI XI against a real, strong Australian
+# attack. Normalizing both to [0,1] before combining is the same fix
+# already applied where ratings feed the simulator (see git history:
+# "normalize ratings to [0,1] in simulator and compare card builders")
+# — this was the one place it was missed, and cards.py's own version of
+# _norm_bowl had the sign backwards until the same pass that added this
+# comment (see ml.simulate.cards._norm_bowl for the full derivation).
+def _norm_bat(raw: float) -> float:
+    return float(np.clip((raw - 25) / 75, 0, 1))
+
+
+def _norm_bowl(raw: float) -> float:
+    return float(np.clip((raw + 50) / 40, 0, 1))
+
+
 @dataclass
 class PlayerOption:
     """A player available for selection."""
@@ -82,13 +110,17 @@ def generate_candidate_xis(
         if len(candidates) >= n_candidates:
             break
 
-        noise = rng.normal(0, 0.05, len(squad))
+        # Scaled for the now-normalized [0,2] objective (was 0.05, tuned for
+        # the old raw bat+bowl sum's much larger ~100-150 range) — small
+        # enough to just break near-ties for candidate diversity, not
+        # reorder genuinely different players.
+        noise = rng.normal(0, 0.01, len(squad))
 
         prob = pulp.LpProblem(f"xi_select_{trial}", pulp.LpMaximize)
         x = {i: pulp.LpVariable(f"x_{i}", cat="Binary") for i in range(len(squad))}
 
         prob += pulp.lpSum(
-            x[i] * (squad[i].bat_rating + squad[i].bowl_rating + noise[i])
+            x[i] * (_norm_bat(squad[i].bat_rating) + _norm_bowl(squad[i].bowl_rating) + noise[i])
             for i in range(len(squad))
         )
 
@@ -157,7 +189,7 @@ def _greedy_select(
 
     remaining = sorted(
         [p for p in squad if p.player_id not in selected_ids],
-        key=lambda p: p.bat_rating + p.bowl_rating,
+        key=lambda p: _norm_bat(p.bat_rating) + _norm_bowl(p.bowl_rating),
         reverse=True,
     )
     for p in remaining:
@@ -328,7 +360,14 @@ def select_xi(
     if evaluate_fn is None:
 
         def evaluate_fn(xi, n_sims=1000):
-            return sum(p.bat_rating + p.bowl_rating for p in xi) / 11
+            # Normalized average player quality in [0,1] — not a real win
+            # probability (there's no opponent to simulate against here),
+            # but it's reported to callers as `win_prob`, so it needs to
+            # stay in a plausible probability range rather than the old
+            # raw bat+bowl sum (unbounded, typically 40-150).
+            return sum(_norm_bat(p.bat_rating) + _norm_bowl(p.bowl_rating) for p in xi) / (
+                2 * len(xi)
+            )
 
     candidates = generate_candidate_xis(
         squad,

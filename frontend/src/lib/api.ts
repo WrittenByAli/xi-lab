@@ -51,6 +51,7 @@ export interface RecommendResponse {
   bowling_plan: Record<string, number>
   tie_set: string[][]
   swap_matrix: Record<string, Record<string, number>>
+  warnings: string[]
 }
 
 export interface ScoreDistribution {

@@ -136,7 +136,7 @@ def get_squad(
 
         player["role"] = "pure_bat"
         player["bat_rating"] = 0.5
-        player["bowl_rating"] = 0.5
+        player["bowl_rating"] = -50.0  # see PlayerIn.bowl_rating for why
 
         if ratings is not None:
             r = ratings[ratings["player_id"] == pid]
@@ -144,7 +144,7 @@ def get_squad(
                 latest = r.sort_values("snapshot_month").iloc[-1]
                 player["role"] = str(latest.get("role", "pure_bat"))
                 player["bat_rating"] = round(float(latest.get("bat_rating", 0.5)), 4)
-                player["bowl_rating"] = round(float(latest.get("bowl_rating", 0.5)), 4)
+                player["bowl_rating"] = round(float(latest.get("bowl_rating", -50.0)), 4)
 
         app_count = int(recent[recent["player_id"] == pid]["match_id"].nunique())
         player["recent_matches"] = app_count
