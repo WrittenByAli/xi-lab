@@ -301,9 +301,7 @@ def build_cards(
     )
 
 
-def _remap_phases(
-    trained: dict[str, np.ndarray], requested: list[str]
-) -> dict[str, np.ndarray]:
+def _remap_phases(trained: dict[str, np.ndarray], requested: list[str]) -> dict[str, np.ndarray]:
     """Map a 3-bucket (powerplay/middle/death) prediction onto an arbitrary
     requested phase list by position: first phase -> powerplay, last ->
     death, everything in between -> middle. Falls through unchanged when

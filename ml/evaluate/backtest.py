@@ -106,7 +106,9 @@ def _get_team_ratings(
     return np.array(bat_ratings), np.array(bowl_ratings)
 
 
-def _compute_features(t1: tuple[np.ndarray, np.ndarray], t2: tuple[np.ndarray, np.ndarray]) -> dict | None:
+def _compute_features(
+    t1: tuple[np.ndarray, np.ndarray], t2: tuple[np.ndarray, np.ndarray]
+) -> dict | None:
     """Extract normalized team-level features from individual ratings.
 
     t1/t2 are (bat_ratings, bowl_ratings) arrays, as returned by
@@ -126,7 +128,9 @@ def _compute_features(t1: tuple[np.ndarray, np.ndarray], t2: tuple[np.ndarray, n
         # the 3 smallest would be its 3 worst.
         return {
             "bat_mean": bat.mean() if len(bat) > 0 else 0.0,
-            "bat_top3": np.sort(bat)[-3:].mean() if len(bat) >= 3 else (bat.mean() if len(bat) > 0 else 0.0),
+            "bat_top3": np.sort(bat)[-3:].mean()
+            if len(bat) >= 3
+            else (bat.mean() if len(bat) > 0 else 0.0),
             "bowl_mean": bowl.mean() if len(bowl) > 0 else 0.0,
             "bowl_top3": np.sort(bowl)[-3:].mean()
             if len(bowl) >= 3

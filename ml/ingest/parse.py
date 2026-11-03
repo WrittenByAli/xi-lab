@@ -51,9 +51,7 @@ FORMAT_DIRS = {
 # ── Single-match parser ───────────────────────────────────────────────────────
 
 
-def parse_match(
-    path: Path, *, require_gender: str | None = None
-) -> dict[str, list[dict]] | None:
+def parse_match(path: Path, *, require_gender: str | None = None) -> dict[str, list[dict]] | None:
     """
     Parse one Cricsheet JSON file.
 

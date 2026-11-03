@@ -17,9 +17,7 @@ _BOWLING_ROLES = ("pure_bowl", "bowl_allrounder", "bat_allrounder")
 
 
 def _bowling_attack(bowl_cards: list, players: list) -> list:
-    bowlers = [
-        b for b, p in zip(bowl_cards, players, strict=False) if p.role in _BOWLING_ROLES
-    ][:5]
+    bowlers = [b for b, p in zip(bowl_cards, players, strict=False) if p.role in _BOWLING_ROLES][:5]
     return bowlers if len(bowlers) == 5 else bowl_cards[:5]
 
 
@@ -64,12 +62,18 @@ def compare(req: CompareRequest):
     # is what makes a per-simulation win-probability difference statistically
     # valid instead of comparing two independent, noisier estimates.
     ctx_a = MatchContext(
-        batting_order=a_bat, bowling_attack=opp_bowl_vs_a, total_overs=total_overs,
-        phases=phases, phase_names=ctx.phase_names,
+        batting_order=a_bat,
+        bowling_attack=opp_bowl_vs_a,
+        total_overs=total_overs,
+        phases=phases,
+        phase_names=ctx.phase_names,
     )
     ctx_b = MatchContext(
-        batting_order=b_bat, bowling_attack=opp_bowl_vs_b, total_overs=total_overs,
-        phases=phases, phase_names=ctx.phase_names,
+        batting_order=b_bat,
+        bowling_attack=opp_bowl_vs_b,
+        total_overs=total_overs,
+        phases=phases,
+        phase_names=ctx.phase_names,
     )
     res_a = simulate_match(ctx_a, opp_bat_vs_a, opp_bowl_vs_a, n_sims=n, crn_seed=seed)
     res_b = simulate_match(ctx_b, opp_bat_vs_b, opp_bowl_vs_b, n_sims=n, crn_seed=seed)

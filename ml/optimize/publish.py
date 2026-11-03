@@ -150,9 +150,7 @@ def _build_opponent_evaluate_fn(
     def evaluate_fn(xi: list[PlayerOption], n_sims: int = 1000) -> float:
         cards = [player_cards[p.player_id] for p in xi]
         bat_cards = [c[0] for c in cards]
-        bowl_cards = [c[1] for c, p in zip(cards, xi, strict=False) if p.role in _BOWLING_ROLES][
-            :5
-        ]
+        bowl_cards = [c[1] for c, p in zip(cards, xi, strict=False) if p.role in _BOWLING_ROLES][:5]
         if len(bowl_cards) < 5:
             bowl_cards = [c[1] for c in cards][:5]
 
@@ -163,9 +161,7 @@ def _build_opponent_evaluate_fn(
             phases=phases,
             phase_names=ctx.phase_names,
         )
-        result = simulate_match(
-            match_ctx, opp_bat_cards, bowl_cards, n_sims=min(n_sims, sim_cap)
-        )
+        result = simulate_match(match_ctx, opp_bat_cards, bowl_cards, n_sims=min(n_sims, sim_cap))
         return result["team1_win_prob"] + 0.5 * result["tie_prob"]
 
     return evaluate_fn

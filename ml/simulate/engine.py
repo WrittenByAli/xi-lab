@@ -154,7 +154,9 @@ def simulate_innings(
 
         bowler_idx = bowler_assignments[min(representative_over, len(bowler_assignments) - 1)]
         bowler = ctx.bowling_attack[bowler_idx]
-        bowl_probs = bowler.probs_by_phase.get(phase_name, bowler.probs_by_phase.get("middle", _UNIFORM9))
+        bowl_probs = bowler.probs_by_phase.get(
+            phase_name, bowler.probs_by_phase.get("middle", _UNIFORM9)
+        )
 
         # Every possible batter's probs for this phase, gathered once
         # (max_batters is ~11, not n_sims) and then indexed per-sim by

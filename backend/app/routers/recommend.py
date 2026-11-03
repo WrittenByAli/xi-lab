@@ -67,9 +67,7 @@ def _build_opponent_evaluate_fn(req: RecommendRequest, opponent_team: str, squad
     racing-search round.
     """
     try:
-        opp_squad = get_squad(
-            team=opponent_team, format=req.format, gender=req.gender, months=12
-        )
+        opp_squad = get_squad(team=opponent_team, format=req.format, gender=req.gender, months=12)
     except HTTPException:
         return None
 
@@ -129,9 +127,7 @@ def _build_opponent_evaluate_fn(req: RecommendRequest, opponent_team: str, squad
     def evaluate_fn(xi: list[PlayerOption], n_sims: int = 1000) -> float:
         cards = [player_cards[p.player_id] for p in xi]
         bat_cards = [c[0] for c in cards]
-        bowl_cards = [
-            c[1] for c, p in zip(cards, xi, strict=False) if p.role in _BOWLING_ROLES
-        ][:5]
+        bowl_cards = [c[1] for c, p in zip(cards, xi, strict=False) if p.role in _BOWLING_ROLES][:5]
         if len(bowl_cards) < 5:
             bowl_cards = [c[1] for c in cards][:5]
 

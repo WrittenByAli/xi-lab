@@ -93,9 +93,7 @@ class TestSimulateInningsInvariants:
     def test_per_sim_target_array_is_respected(self):
         # Half the sims need 1 run (trivial), half need an unreachable amount.
         targets = np.where(np.arange(self.N) % 2 == 0, 1, 10_000).astype(np.int64)
-        result = simulate_innings(
-            _ctx(target=targets), n_sims=self.N, rng=np.random.default_rng(6)
-        )
+        result = simulate_innings(_ctx(target=targets), n_sims=self.N, rng=np.random.default_rng(6))
         assert result.chased[::2].all()
         assert not result.chased[1::2].any()
 
@@ -114,7 +112,11 @@ class TestSimulateMatch:
         bat = _batting_order()
         bowl = _bowling_attack()
         ctx = MatchContext(
-            batting_order=bat, bowling_attack=bowl, total_overs=20, phases=PHASES, phase_names=PHASE_NAMES
+            batting_order=bat,
+            bowling_attack=bowl,
+            total_overs=20,
+            phases=PHASES,
+            phase_names=PHASE_NAMES,
         )
         res = simulate_match(ctx, bat, bowl, n_sims=3000, crn_seed=11)
         assert 0.3 < res["team1_win_prob"] < 0.7
@@ -124,7 +126,11 @@ class TestSimulateMatch:
         # more tightly than the spread of either one's own score alone.
         bat, bowl = _batting_order(), _bowling_attack()
         ctx = MatchContext(
-            batting_order=bat, bowling_attack=bowl, total_overs=20, phases=PHASES, phase_names=PHASE_NAMES
+            batting_order=bat,
+            bowling_attack=bowl,
+            total_overs=20,
+            phases=PHASES,
+            phase_names=PHASE_NAMES,
         )
         res_a = simulate_match(ctx, bat, bowl, n_sims=2000, crn_seed=7)
         res_b = simulate_match(ctx, bat, bowl, n_sims=2000, crn_seed=7)
